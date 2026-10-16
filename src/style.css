@@ -45,6 +45,7 @@ input[type='text'], input[type='search'], select { font: inherit; padding: 5px 8
 .results-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; }
 .results-head select { width: auto; }
 .results-viewport { height: 320px; overflow-y: auto; position: relative; border: 1px solid var(--line); border-radius: 6px; }
+.results-spacer { position: relative; }
 .result { position: absolute; left: 0; right: 0; height: 56px; padding: 6px 8px; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; cursor: pointer; }
 .result:hover { background: #faf9f6; }
 .result.selected { background: #fff3e8; }

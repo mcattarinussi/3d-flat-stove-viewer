@@ -2,6 +2,11 @@ import * as THREE from 'three';
 import './style.css';
 import { loadApartment } from './data/apartment';
 import { loadCatalogue } from './data/stoves';
+import { applyFilters, defaultFilters, extents, sortStoves, type SortKey } from './data/filters';
+import { safeLocalStorage, Shortlist } from './data/shortlist';
+import { renderFilters } from './ui/filtersPanel';
+import { ResultsList } from './ui/resultsList';
+import { renderStoveCard } from './ui/stoveCard';
 import type { Stove } from './data/types';
 import { buildBuffer } from './scene/buffer';
 import { PlacementController } from './scene/placement';
@@ -88,10 +93,63 @@ async function main(): Promise<void> {
     if (bufferGroup) bufferGroup.visible = on;
   }
 
-  // [sidebar]
+  const shortlist = new Shortlist(safeLocalStorage());
+  const brandCounts = new Map<string, number>();
+  for (const s of catalogue.stoves) brandCounts.set(s.brand, (brandCounts.get(s.brand) ?? 0) + 1);
+  let filters = defaultFilters(catalogue.categories);
+  let sortKey: SortKey = 'price';
+
+  const results = new ResultsList(section('results'), {
+    sort: sortKey,
+    onSort: (k) => {
+      sortKey = k;
+      refreshResults();
+    },
+    onSelect: (id) => select(byId.get(id) ?? null),
+    onToggleStar: (id) => shortlist.toggle(id),
+    isStarred: (id) => shortlist.has(id),
+  });
+  renderFilters(section('filters'), { catalogue, brandCounts, extents: extents(catalogue.stoves.filter((s) => s.dims)) }, filters, (f) => {
+    filters = f;
+    refreshResults();
+  });
+
+  function refreshResults(): void {
+    const r = applyFilters(catalogue.stoves, filters);
+    const notes = [r.hiddenMissingData ? `${r.hiddenMissingData} nascoste per dati mancanti` : '', `${r.noDims} senza dimensioni non mostrate`];
+    results.setItems(sortStoves(r.visible, sortKey), notes.filter(Boolean));
+  }
+
+  function renderCard(): void {
+    renderStoveCard(section('stove-card'), current, {
+      categories: catalogue.categories,
+      bufferOn,
+      onBufferToggle: (on) => setBuffer(on),
+      starred: current ? shortlist.has(current.id) : false,
+      onToggleStar: () => {
+        if (current) shortlist.toggle(current.id);
+      },
+    });
+  }
+
+  function select(s: Stove | null): void {
+    showStove(s);
+    results.setSelected(current?.id ?? null);
+    renderCard();
+  }
+
+  const compareLink = document.getElementById('compare-link')!;
+  const updateCompareLink = () => (compareLink.textContent = `Confronta (${shortlist.ids().length})`);
+  shortlist.onChange(() => {
+    results.refresh();
+    renderCard();
+    updateCompareLink();
+  });
+  updateCompareLink();
+  refreshResults();
 
   // [url]
-  showStove(byId.get(new URLSearchParams(location.search).get('stove') ?? '') ?? null);
+  select(byId.get(new URLSearchParams(location.search).get('stove') ?? '') ?? null);
 
   const camPos = new THREE.Vector3();
   viewer.onFrame(() => {
