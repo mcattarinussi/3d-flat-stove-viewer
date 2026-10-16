@@ -1,6 +1,12 @@
 import * as THREE from 'three';
 import './style.css';
 import { loadApartment } from './data/apartment';
+import { loadCatalogue } from './data/stoves';
+import type { Stove } from './data/types';
+import { buildBuffer } from './scene/buffer';
+import { PlacementController } from './scene/placement';
+import { buildFlueHint, buildStove } from './scene/stoveModel';
+import { renderPlacementPanel } from './ui/placementPanel';
 import { CameraRig } from './scene/camera';
 import { Doors } from './scene/doors';
 import { onTap, pickAt } from './scene/pick';
@@ -43,7 +49,49 @@ async function main(): Promise<void> {
     if (id) doors.toggle(id);
   });
 
-  // [stove]
+  const catalogue = await loadCatalogue('./data/stoves.json');
+  const byId = new Map(catalogue.stoves.map((s) => [s.id, s]));
+  const placement = new PlacementController({
+    dom: canvas,
+    root: viewer.root,
+    room: { width: apartment.room.width, depth: apartment.room.depth },
+    getCamera: () => rig.camera,
+    getControls: () => rig.controls,
+  });
+  const placementPanel = renderPlacementPanel(section('placement'), {
+    nudge: (dir, step) => placement.nudge(dir, step),
+    rotate: (delta) => placement.rotateBy(delta),
+    snap: () => placement.snap(),
+  });
+  placement.onChange(() => placementPanel.setDistances(placement.distances()));
+
+  let current: Stove | null = null;
+  let bufferOn = true;
+  let bufferGroup: THREE.Object3D | null = null;
+
+  function showStove(s: Stove | null): void {
+    current = s?.dims ? s : null;
+    bufferGroup = null;
+    if (!current?.dims) {
+      placement.setStove(null);
+      return;
+    }
+    bufferGroup = buildBuffer(current.dims, current.safety);
+    if (bufferGroup) bufferGroup.visible = bufferOn;
+    const extras: THREE.Object3D[] = [buildFlueHint(current, apartment.ceilingHeight)];
+    if (bufferGroup) extras.push(bufferGroup);
+    placement.setStove({ object: buildStove(current), dims: current.dims, safety: current.safety }, extras);
+  }
+
+  function setBuffer(on: boolean): void {
+    bufferOn = on;
+    if (bufferGroup) bufferGroup.visible = on;
+  }
+
+  // [sidebar]
+
+  // [url]
+  showStove(byId.get(new URLSearchParams(location.search).get('stove') ?? '') ?? null);
 
   const camPos = new THREE.Vector3();
   viewer.onFrame(() => {
