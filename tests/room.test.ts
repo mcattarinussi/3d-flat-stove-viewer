@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { parseApartment } from '../src/data/apartment';
-import { buildRoom, wallPieces, wallPoint, wallYaw } from '../src/scene/room';
+import { buildRoom, skirtingSegments, wallPieces, wallPoint, wallYaw } from '../src/scene/room';
 
 const apt = parseApartment(JSON.parse(readFileSync('data/apartment.json', 'utf8')));
 const room = apt.room;
@@ -64,5 +64,47 @@ describe('buildRoom cutaway', () => {
     expect(view.walls.get('east')!.visible).toBe(true);
     view.updateCutaway({ x: 1, z: 1.7 });
     expect([...view.walls.values()].every((w) => w.visible)).toBe(true);
+  });
+});
+
+describe('skirtingSegments', () => {
+  const close = (got: [number, number][], want: [number, number][]) => {
+    expect(got).toHaveLength(want.length);
+    got.forEach(([a, b], i) => {
+      expect(a).toBeCloseTo(want[i][0]);
+      expect(b).toBeCloseTo(want[i][1]);
+    });
+  };
+
+  it('runs between the door casings, closing the corners on north/south walls', () => {
+    close(skirtingSegments(room, 'east', 0.01), [[0, 0.65], [1.59, 3.4]]);
+    close(skirtingSegments(room, 'west', 0.01), [[0, 0.65], [1.59, 2.18], [3.12, 3.4]]);
+    close(skirtingSegments(room, 'north', 0.01), [[-0.01, 0.56], [1.5, 2.01]]);
+    close(skirtingSegments(room, 'south', 0.01), [[-0.01, 0.48], [1.52, 2.01]]);
+  });
+});
+
+describe('buildRoom details', () => {
+  const view = buildRoom(apt);
+  const names = (wall: 'north' | 'south' | 'east' | 'west') => view.walls.get(wall)!.children.map((c) => c.name);
+
+  it('adds skirting, sills and wall plates to their walls', () => {
+    expect(names('north').filter((n) => n === 'skirting')).toHaveLength(2);
+    expect(names('north')).toEqual(expect.arrayContaining(['sill-disimpegno', 'fixture-interruttore-notte', 'fixture-termostato']));
+    expect(names('east')).toEqual(expect.arrayContaining(['fixture-interruttore-soggiorno', 'fixture-presa', 'sill-soggiorno']));
+  });
+
+  it('draws one rocker per gang', () => {
+    const plate = view.walls.get('north')!.getObjectByName('fixture-interruttore-notte')!;
+    expect(plate.children.filter((c) => c.name === 'rocker')).toHaveLength(2);
+  });
+
+  it('puts plates on the room side of their wall', () => {
+    view.group.updateMatrixWorld(true);
+    const centre = (name: string) => new THREE.Box3().setFromObject(view.group.getObjectByName(name)!).getCenter(new THREE.Vector3());
+    expect(centre('fixture-termostato').z).toBeLessThan(3.4);
+    expect(centre('fixture-termostato').z).toBeGreaterThan(3.4 - 0.05);
+    expect(centre('fixture-presa').x).toBeLessThan(2);
+    expect(centre('fixture-presa').x).toBeGreaterThan(2 - 0.05);
   });
 });

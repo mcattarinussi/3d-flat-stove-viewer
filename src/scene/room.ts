@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { wallLength } from '../data/apartment';
-import type { Apartment, Room, Wall } from '../data/types';
+import type { Apartment, Fixture, Room, Wall } from '../data/types';
 
 export interface WallPiece {
   a0: number;
@@ -63,6 +63,63 @@ export function wallYaw(wall: Wall): number {
   return wall === 'north' || wall === 'south' ? 0 : -Math.PI / 2;
 }
 
+/** Along-wall runs that get skirting: corner to corner, interrupted at each opening plus its casing. */
+export function skirtingSegments(room: Room, wall: Wall, thickness: number, casing = 0.07): [number, number][] {
+  const len = wallLength(room, wall);
+  const ext = wall === 'north' || wall === 'south' ? thickness : 0;
+  const gaps = room.openings
+    .filter((o) => o.wall === wall)
+    .map((o) => [o.from - casing, o.to + casing] as const)
+    .sort((a, b) => a[0] - b[0]);
+  const runs: [number, number][] = [];
+  let cursor = 0 - ext;
+  for (const [g0, g1] of gaps) {
+    if (g0 > cursor + 1e-9) runs.push([cursor, g0]);
+    cursor = Math.max(cursor, g1);
+  }
+  if (len + ext > cursor + 1e-9) runs.push([cursor, len + ext]);
+  return runs;
+}
+
+/**
+ * With rotation.y = wallYaw(wall), local +z points into the room on the south and east walls
+ * and out of it on the north and west walls.
+ */
+const INTO_ROOM_Z: Record<Wall, 1 | -1> = { south: 1, east: 1, north: -1, west: -1 };
+
+/** A switch, socket or thermostat on the inner face of its wall. Local frame: x along the wall, y up. */
+function buildPlate(f: Fixture, wall: Wall, mats: { plate: THREE.Material; dark: THREE.Material; dial: THREE.Material }): THREE.Group {
+  const k = INTO_ROOM_Z[wall];
+  const g = new THREE.Group();
+  g.name = `fixture-${f.id}`;
+  const w = f.to - f.from;
+  const plate = new THREE.Mesh(new THREE.BoxGeometry(w, f.height, f.depth), mats.plate);
+  plate.position.z = (k * f.depth) / 2;
+  g.add(plate);
+  if (f.type === 'switch') {
+    const pitch = f.height / f.gangs;
+    for (let i = 0; i < f.gangs; i++) {
+      const rocker = new THREE.Mesh(new THREE.BoxGeometry(w * 0.55, pitch * 0.6, 0.006), mats.plate);
+      rocker.name = 'rocker';
+      rocker.position.set(0, -f.height / 2 + pitch * (i + 0.5), k * (f.depth + 0.003));
+      g.add(rocker);
+    }
+  } else if (f.type === 'socket') {
+    for (const dx of [-0.012, 0.012]) {
+      const hole = new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.012, 0.002), mats.dark);
+      hole.position.set(dx, 0, k * (f.depth + 0.001));
+      g.add(hole);
+    }
+  } else if (f.type === 'thermostat') {
+    const dialGeo = new THREE.CylinderGeometry(Math.min(w, f.height) * 0.3, Math.min(w, f.height) * 0.3, 0.004, 24);
+    dialGeo.rotateX(Math.PI / 2);
+    const dial = new THREE.Mesh(dialGeo, mats.dial);
+    dial.position.set(w * 0.12, 0, k * (f.depth + 0.002));
+    g.add(dial);
+  }
+  return g;
+}
+
 function marbleTexture(): THREE.Texture | null {
   if (typeof document === 'undefined') return null;
   const c = document.createElement('canvas');
@@ -108,6 +165,13 @@ export function buildRoom(apt: Apartment): RoomView {
   const glassMat = new THREE.MeshPhysicalMaterial({ color: '#dfe7ea', roughness: 0.55, transmission: 0.5, transparent: true, opacity: 0.75 });
   const voidMat = new THREE.MeshBasicMaterial({ color: '#0d0d0f' });
   const radMat = new THREE.MeshStandardMaterial({ color: '#f2f2f0', roughness: 0.35 });
+  const skirtMat = new THREE.MeshStandardMaterial({ color: '#d8ccb4', roughness: 0.35 });
+  const sillMat = new THREE.MeshStandardMaterial({ color: '#e6e1d8', roughness: 0.25 });
+  const plateMats = {
+    plate: new THREE.MeshStandardMaterial({ color: '#f7f7f5', roughness: 0.4 }),
+    dark: new THREE.MeshStandardMaterial({ color: '#2a2a2a', roughness: 0.6 }),
+    dial: new THREE.MeshStandardMaterial({ color: '#d9d9d6', roughness: 0.5 }),
+  };
 
   const floor = new THREE.Mesh(
     new THREE.PlaneGeometry(room.width, room.depth),
@@ -122,13 +186,14 @@ export function buildRoom(apt: Apartment): RoomView {
   for (const wall of WALLS) {
     const wg = new THREE.Group();
     wg.name = `wall-${wall}`;
-    const add = (geo: THREE.BufferGeometry, mat: THREE.Material, a: number, y: number, out: number) => {
+    const add = (geo: THREE.BufferGeometry, mat: THREE.Material, a: number, y: number, out: number, name = '') => {
       const m = new THREE.Mesh(geo, mat);
       const c = wallPoint(room, wall, a, out);
       m.position.set(c.x, y, c.z);
       m.rotation.y = wallYaw(wall);
       m.castShadow = true;
       m.receiveShadow = true;
+      m.name = name;
       wg.add(m);
     };
     for (const p of wallPieces(room, wall, H, T)) {
@@ -150,12 +215,26 @@ export function buildRoom(apt: Apartment): RoomView {
       const threshold = new THREE.PlaneGeometry(width, 0.8);
       threshold.rotateX(-Math.PI / 2);
       add(threshold, voidMat, mid, 0.001, T + 0.4);
+      if (room.finishes.sills) add(new THREE.BoxGeometry(width, 0.005, T), sillMat, mid, 0.0005, T / 2, `sill-${o.id}`);
+    }
+    const skirting = room.finishes.skirting;
+    if (skirting) {
+      for (const [a0, a1] of skirtingSegments(room, wall, skirting.thickness)) {
+        add(new THREE.BoxGeometry(a1 - a0, skirting.height, skirting.thickness), skirtMat, (a0 + a1) / 2, skirting.height / 2, -skirting.thickness / 2, 'skirting');
+      }
+    }
+    for (const f of room.fixtures.filter((x) => x.wall === wall && x.type !== 'radiator')) {
+      const plate = buildPlate(f, wall, plateMats);
+      const c = wallPoint(room, wall, (f.from + f.to) / 2, 0);
+      plate.position.set(c.x, f.elevation + f.height / 2, c.z);
+      plate.rotation.y = wallYaw(wall);
+      wg.add(plate);
     }
     walls.set(wall, wg);
     group.add(wg);
   }
 
-  for (const f of room.fixtures) {
+  for (const f of room.fixtures.filter((x) => x.type === 'radiator')) {
     const len = f.to - f.from;
     const n = Math.max(3, Math.round(len / 0.06));
     const pitch = len / n;
