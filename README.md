@@ -3,7 +3,8 @@
 A static web app for choosing a wood-burning stove for the apartment's entrance hall (*ingresso*) and working out where it goes.
 
 - **Viewer** (`index.html`)
-  - Filter the catalogue of 668 wood stoves from 23 brands.
+  - Filter the catalogue of 539 wood stoves (*stufe a legna*, including stoves with oven, storage and fireplace stoves) from 23 brands. Cookers, boiler stoves and inserts are excluded.
+  - See each stove's pictures, extracted from the manufacturer catalogues, in a floating details window, and optionally on the 3D stove itself ("Foto frontale").
   - Place a stove in a to-scale 3D model of the ingresso: drag it, rotate it, nudge it, or snap it to a wall.
   - See the manufacturer's safety distances as a translucent buffer.
   - Open and close the doors.
@@ -42,11 +43,26 @@ The build copies `data/` next to the pages. The manufacturer catalogues (`assets
 | `data/apartment.json` | The ingresso: size, ceiling height, wall thickness, doors (hinge side, swing direction, glazing, transom) and the radiator. Derived from `assets/floor-plan.svg` and the photos. |
 | `assets/catalogues/` | Source PDFs and price sheets, linked from each stove. Local only, not in git. |
 | `assets/photos/` | Photos of the apartment used to model the ingresso. Local only, not in git. |
+| `public/stove-images/` | Pictures extracted from the catalogues (`img/`), the per-stove list (`index.json`) and the curated front-photo crops (`fronts.json`). Committed and deployed. |
 | `public/models/` | Optional real 3D models (see below). |
 
 Door heights (2.10 m), the transom above the night-area door (0.50 m) and the radiator's size and position are estimates. To correct them, edit `data/apartment.json`; the app checks the file on load and reports any inconsistencies.
 
 Stoves without dimensions (66) can't be placed. Stoves without declared safety distances show no buffer: the app never makes up a default distance.
+
+## Stove pictures
+
+Pictures come from the images embedded in each stove's cited catalogue pages:
+
+```bash
+python3 -m venv .venv && .venv/bin/pip install -r scripts/requirements.txt
+.venv/bin/python scripts/extract_images.py              # all stoves (needs assets/catalogues/)
+.venv/bin/python scripts/extract_images.py --only <id>  # one stove
+```
+
+Some extracted images are catalogue layout fragments (background tiles, logos, icons); the gallery shows them as they come.
+
+To put a real photo on the front of a 3D stove, run `npm run dev`, select the stove, open its details window and use **"Usa come frontale…"** under a picture: draw the stove's front, then **Salva**. The crop is written to `public/stove-images/fronts.json`; commit that file. The cropper only exists on the development server. Re-running the extractor can rename images; crops pointing to a missing image are ignored.
 
 ## Real 3D models
 

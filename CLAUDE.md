@@ -16,6 +16,7 @@ A static Vite + TypeScript + three.js app for placing a wood stove in the apartm
 - `src/ui/`: plain-DOM panels built with the `el()` helper in `ui/dom.ts`. No UI framework.
 - `src/viewer.ts`, `src/compare.ts`: page entry points. They only wire modules together; keep logic out of them.
 - `src/compare/table.ts`: pure compare rows, CSV and footprint SVG.
+- `src/data/images.ts`: picture index and front crops (`public/stove-images/`). `scripts/extract_images.py` (Python, offline) produces them; `scripts/frontsMiddleware.ts` is the dev-only API the cropper saves through.
 - `tests/`: one test file per module. `tests/fixtures.ts` provides `rawStove()` and `stove()`.
 
 ## Conventions that are easy to get wrong
@@ -32,6 +33,8 @@ A static Vite + TypeScript + three.js app for placing a wood stove in the apartm
 - **Safety distances.**
   - Never invent a fallback. A null `safety` draws nothing; null fields add 0.
   - There is deliberately no violation or alert logic (spec decision).
+- **Catalogue scope.** Only *stufe a legna*: `EXCLUDED_CATEGORIES` in `stoves.ts` drops cookstove, thermo_stove, thermo_cookstove and insert; unknown categories are kept. The free-wall filter is depth ≤ 0.57 m.
+- **Pictures.** `fronts.json` entries are only valid if their image is listed for that stove in `index.json`; re-running the extractor can invalidate crops. The cropper and `/__fronts` exist only in dev (`import.meta.env.DEV`, Vite `apply: 'serve'`).
 - **Bounding box.** `buildStove()` must produce a bounding box of exactly W×H×D; tests enforce this. Shared stove materials come from `mats()` and must not be disposed. Per-instance materials are flagged `userData.disposable`.
 - **URLs.** Use relative URLs only (`./data/…`, `./models/…`, `./assets/catalogues/…`). Vite runs with `base: './'`, so the site works under any GitHub Pages sub-path.
 - **Local-only assets.** `assets/catalogues/` and `assets/photos/` are git-ignored; never commit them. Code and tests must work when they're absent (CI): the build copies the catalogues only if present, and the source-file test skips.
