@@ -167,6 +167,14 @@ export class PlacementController {
     this.setPose(this.pose ?? initialPose(handle.dims, handle.safety, this.opts.room));
   }
 
+  /** Swaps the stove mesh (e.g. when its GLB finishes loading) without touching pose, buffer or ring. */
+  replaceObject(object: THREE.Object3D): void {
+    if (!this.stove) return;
+    this.holder.remove(this.stove.object);
+    this.stove = { ...this.stove, object };
+    this.holder.add(object);
+  }
+
   getPose(): Pose | null {
     return this.stove ? this.pose : null;
   }

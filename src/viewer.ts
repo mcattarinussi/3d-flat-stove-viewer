@@ -13,7 +13,7 @@ import { renderStoveCard } from './ui/stoveCard';
 import type { Stove } from './data/types';
 import { buildBuffer } from './scene/buffer';
 import { PlacementController } from './scene/placement';
-import { buildFlueHint, buildStove } from './scene/stoveModel';
+import { buildFlueHint, buildStove, loadModelIndex, loadStoveObject } from './scene/stoveModel';
 import { renderPlacementPanel } from './ui/placementPanel';
 import { CameraRig } from './scene/camera';
 import { Doors } from './scene/doors';
@@ -73,11 +73,15 @@ async function main(): Promise<void> {
   });
   placement.onChange(() => placementPanel.setDistances(placement.distances()));
 
+  const overrides = await loadModelIndex('./models/index.json');
+  let showToken = 0;
   let current: Stove | null = null;
   let bufferOn = true;
   let bufferGroup: THREE.Object3D | null = null;
 
   function showStove(s: Stove | null): void {
+    // Every call invalidates a GLB still loading for a previously selected stove.
+    const token = ++showToken;
     current = s?.dims ? s : null;
     bufferGroup = null;
     if (!current?.dims) {
@@ -89,6 +93,12 @@ async function main(): Promise<void> {
     const extras: THREE.Object3D[] = [buildFlueHint(current, apartment.ceilingHeight)];
     if (bufferGroup) extras.push(bufferGroup);
     placement.setStove({ object: buildStove(current), dims: current.dims, safety: current.safety }, extras);
+    if (overrides.has(current.id)) {
+      // Show the parametric stove at once, swap in the GLB when (and if) it arrives.
+      void loadStoveObject(current, overrides).then((obj) => {
+        if (token === showToken) placement.replaceObject(obj);
+      });
+    }
   }
 
   function setBuffer(on: boolean): void {

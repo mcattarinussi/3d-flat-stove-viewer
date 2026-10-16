@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import type { Stove } from '../data/types';
+import type { Dims, Stove } from '../data/types';
 
 export interface Panel {
   kind: 'glass' | 'oven' | 'ash';
@@ -170,4 +170,59 @@ export function buildFlueHint(s: Stove, ceiling: number): THREE.Line {
   line.computeLineDistances();
   line.name = 'flue-hint';
   return line;
+}
+
+export async function loadModelIndex(url: string): Promise<Set<string>> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return new Set();
+    const ids: unknown = await res.json();
+    return new Set(Array.isArray(ids) ? ids.filter((x): x is string => typeof x === 'string') : []);
+  } catch {
+    return new Set();
+  }
+}
+
+/** Fits any model into the catalogue box (front assumed +z, glTF convention). */
+export function fitToDims(obj: THREE.Object3D, dims: Dims): THREE.Group {
+  const box = new THREE.Box3().setFromObject(obj);
+  const size = box.getSize(new THREE.Vector3());
+  const centre = box.getCenter(new THREE.Vector3());
+  obj.position.sub(new THREE.Vector3(centre.x, box.min.y, centre.z));
+  const inner = new THREE.Group();
+  inner.add(obj);
+  inner.scale.set(dims.w / size.x, dims.h / size.y, dims.d / size.z);
+  const wrapper = new THREE.Group();
+  wrapper.add(inner);
+  // The room root mirrors z; mirroring x as well turns that into a rotation, keeping the model's handedness.
+  wrapper.scale.x = -1;
+  return wrapper;
+}
+
+async function gltfLoad(url: string): Promise<THREE.Object3D> {
+  const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js');
+  const gltf = await new GLTFLoader().loadAsync(url);
+  gltf.scene.traverse((o) => {
+    if ((o as THREE.Mesh).isMesh) {
+      o.castShadow = true;
+      o.receiveShadow = true;
+    }
+  });
+  return gltf.scene;
+}
+
+export async function loadStoveObject(
+  s: Stove,
+  overrides: Set<string>,
+  loadGlb: (url: string) => Promise<THREE.Object3D> = gltfLoad,
+): Promise<THREE.Object3D> {
+  const dims = dimsOf(s);
+  if (overrides.has(s.id)) {
+    try {
+      return fitToDims(await loadGlb(`./models/${s.id}.glb`), dims);
+    } catch (err) {
+      console.warn(`Modello 3D per ${s.id} non caricato, uso quello parametrico`, err);
+    }
+  }
+  return buildStove(s);
 }
