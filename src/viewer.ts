@@ -3,7 +3,7 @@ import './style.css';
 import { loadApartment } from './data/apartment';
 import { loadCatalogue } from './data/stoves';
 import { applyFilters, defaultFilters, extents, sortStoves, type SortKey } from './data/filters';
-import { safeLocalStorage, Shortlist } from './data/shortlist';
+import { safeLocalStorage, Shortlist, SHORTLIST_KEY } from './data/shortlist';
 import { decodeState, EMPTY_STATE, encodeState } from './data/urlState';
 import { renderSharePanel } from './ui/sharePanel';
 import { toast } from './ui/toast';
@@ -107,6 +107,9 @@ async function main(): Promise<void> {
   }
 
   const shortlist = new Shortlist(safeLocalStorage());
+  // Keep in step with the compare page (other tab, or back/forward cache).
+  window.addEventListener('storage', (e) => e.key === SHORTLIST_KEY && shortlist.reload());
+  window.addEventListener('pageshow', (e) => e.persisted && shortlist.reload());
   const brandCounts = new Map<string, number>();
   for (const s of catalogue.stoves) brandCounts.set(s.brand, (brandCounts.get(s.brand) ?? 0) + 1);
   let filters = defaultFilters(catalogue.categories);
@@ -170,7 +173,8 @@ async function main(): Promise<void> {
   refreshResults();
 
   let urlTimer: number | undefined;
-  function currentQuery(): string {
+  /** The shortlist goes in the URL only when it cannot persist, or for links shared with others. */
+  function currentQuery(withShortlist = !shortlist.persistent): string {
     const pose = placement.getPose();
     return encodeState({
       stove: current?.id ?? null,
@@ -178,7 +182,7 @@ async function main(): Promise<void> {
       z: pose?.z ?? null,
       r: pose?.r ?? null,
       doors: doors.openIds(),
-      shortlist: shortlist.ids(),
+      shortlist: withShortlist ? shortlist.ids() : [],
       buffer: bufferOn,
     });
   }
@@ -201,7 +205,7 @@ async function main(): Promise<void> {
   placement.onChange(syncUrl);
   doors.onChange(syncUrl);
   shortlist.onChange(syncUrl);
-  renderSharePanel(section('share'), () => `${location.origin}${location.pathname}${currentQuery()}`, toast);
+  renderSharePanel(section('share'), () => `${location.origin}${location.pathname}${currentQuery(true)}`, toast);
 
   const camPos = new THREE.Vector3();
   viewer.onFrame(() => {

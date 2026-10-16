@@ -42,6 +42,18 @@ export class Shortlist {
     this.listeners.forEach((l) => l());
   }
 
+  /** True when the list survives reloads (storage available), so URLs need not carry it. */
+  get persistent(): boolean {
+    return this.store !== null;
+  }
+
+  /** Re-reads the stored list, e.g. after another page or tab changed it. */
+  reload(): void {
+    if (!this.store) return;
+    this.list = this.read();
+    this.listeners.forEach((l) => l());
+  }
+
   ids(): string[] {
     return [...this.list];
   }

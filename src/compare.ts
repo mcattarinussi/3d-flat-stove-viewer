@@ -1,6 +1,6 @@
 import './style.css';
 import { buildCompareRows, footprintSvg, toCsv } from './compare/table';
-import { safeLocalStorage, Shortlist } from './data/shortlist';
+import { safeLocalStorage, Shortlist, SHORTLIST_KEY } from './data/shortlist';
 import { loadCatalogue } from './data/stoves';
 import type { Stove } from './data/types';
 import { decodeState, EMPTY_STATE, encodeState } from './data/urlState';
@@ -20,6 +20,8 @@ async function main(): Promise<void> {
   const catalogue = await loadCatalogue('./data/stoves.json');
   const byId = new Map(catalogue.stoves.map((s) => [s.id, s]));
   const shortlist = new Shortlist(safeLocalStorage());
+  window.addEventListener('storage', (e) => e.key === SHORTLIST_KEY && shortlist.reload());
+  window.addEventListener('pageshow', (e) => e.persisted && shortlist.reload());
   shortlist.merge(decodeState(location.search).shortlist);
   const app = document.getElementById('app')!;
 

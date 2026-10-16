@@ -68,4 +68,25 @@ describe('Shortlist', () => {
     s.add('a');
     expect(s.ids()).toEqual(['a']);
   });
+
+  it('reload picks up changes written by another page and notifies', () => {
+    const store = memStore();
+    const viewer = new Shortlist(store);
+    viewer.merge(['a', 'b']);
+    const compare = new Shortlist(store);
+    compare.remove('b');
+    const cb = vi.fn();
+    viewer.onChange(cb);
+    viewer.reload();
+    expect(viewer.ids()).toEqual(['a']);
+    expect(cb).toHaveBeenCalledTimes(1);
+    viewer.add('c');
+    expect(JSON.parse(store.data[SHORTLIST_KEY])).toEqual(['a', 'c']);
+  });
+
+  it('reports whether it persists', () => {
+    expect(new Shortlist(memStore()).persistent).toBe(true);
+    expect(new Shortlist(null).persistent).toBe(false);
+  });
 });
+
