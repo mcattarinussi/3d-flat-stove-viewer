@@ -90,16 +90,22 @@ def main():
         stoves = [s for s in stoves if s['id'] == args.only]
         if not stoves:
             raise SystemExit(f'unknown or excluded stove id: {args.only}')
+    if not any((ROOT / 'assets' / 'catalogues').rglob('*.pdf')):
+        raise SystemExit('assets/catalogues/ has no PDFs: nothing to extract (existing pictures left untouched)')
     IMG_DIR.mkdir(parents=True, exist_ok=True)
-    index = json.loads(INDEX.read_text()) if args.only and INDEX.exists() else {}
+    old_index = json.loads(INDEX.read_text()) if INDEX.exists() else {}
+    index = dict(old_index) if args.only else {}
     docs = {}
+    incomplete = False
 
     for s in stoves:
         pictures = []
+        missing = False
         for src in s['sources']:
             path = ROOT / src['file'].replace('assets/catalogues/catalogues/', 'assets/catalogues/', 1)
             if not path.exists():
                 print(f'  {s["id"]}: missing {path.relative_to(ROOT)}')
+                missing = True
                 continue
             doc = docs.get(path) or docs.setdefault(path, pymupdf.open(path))
             for page_no in page_numbers(src['pages']):
@@ -108,7 +114,11 @@ def main():
                         rel = save(im)
                         if rel not in pictures:
                             pictures.append(rel)
-        if pictures:
+        if missing and s['id'] in old_index:
+            # A source PDF is not here: keep what was extracted before rather than losing it.
+            index[s['id']] = old_index[s['id']]
+            incomplete = True
+        elif pictures:
             index[s['id']] = pictures
         else:
             index.pop(s['id'], None)
@@ -116,7 +126,7 @@ def main():
     INDEX.write_text(json.dumps(dict(sorted(index.items())), indent=1) + '\n')
 
     used = {p for paths in index.values() for p in paths}
-    if not args.only:
+    if not args.only and not incomplete:
         for f in IMG_DIR.glob('*.jpg'):
             if f'img/{f.name}' not in used:
                 f.unlink()
