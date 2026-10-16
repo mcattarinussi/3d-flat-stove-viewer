@@ -4,6 +4,9 @@ import { loadApartment } from './data/apartment';
 import { loadCatalogue } from './data/stoves';
 import { applyFilters, defaultFilters, extents, sortStoves, type SortKey } from './data/filters';
 import { safeLocalStorage, Shortlist } from './data/shortlist';
+import { decodeState, EMPTY_STATE, encodeState } from './data/urlState';
+import { renderSharePanel } from './ui/sharePanel';
+import { toast } from './ui/toast';
 import { renderFilters } from './ui/filtersPanel';
 import { ResultsList } from './ui/resultsList';
 import { renderStoveCard } from './ui/stoveCard';
@@ -124,7 +127,10 @@ async function main(): Promise<void> {
     renderStoveCard(section('stove-card'), current, {
       categories: catalogue.categories,
       bufferOn,
-      onBufferToggle: (on) => setBuffer(on),
+      onBufferToggle: (on) => {
+        setBuffer(on);
+        syncUrl();
+      },
       starred: current ? shortlist.has(current.id) : false,
       onToggleStar: () => {
         if (current) shortlist.toggle(current.id);
@@ -136,10 +142,15 @@ async function main(): Promise<void> {
     showStove(s);
     results.setSelected(current?.id ?? null);
     renderCard();
+    syncUrl();
   }
 
   const compareLink = document.getElementById('compare-link')!;
-  const updateCompareLink = () => (compareLink.textContent = `Confronta (${shortlist.ids().length})`);
+  const updateCompareLink = () => {
+    compareLink.textContent = `Confronta (${shortlist.ids().length})`;
+    // Carry the shortlist in the link too, in case localStorage is unavailable.
+    compareLink.setAttribute('href', `./compare.html${encodeState({ ...EMPTY_STATE, shortlist: shortlist.ids() })}`);
+  };
   shortlist.onChange(() => {
     results.refresh();
     renderCard();
@@ -148,8 +159,39 @@ async function main(): Promise<void> {
   updateCompareLink();
   refreshResults();
 
-  // [url]
-  select(byId.get(new URLSearchParams(location.search).get('stove') ?? '') ?? null);
+  let urlTimer: number | undefined;
+  function currentQuery(): string {
+    const pose = placement.getPose();
+    return encodeState({
+      stove: current?.id ?? null,
+      x: pose?.x ?? null,
+      z: pose?.z ?? null,
+      r: pose?.r ?? null,
+      doors: doors.openIds(),
+      shortlist: shortlist.ids(),
+      buffer: bufferOn,
+    });
+  }
+  function syncUrl(): void {
+    window.clearTimeout(urlTimer);
+    urlTimer = window.setTimeout(() => history.replaceState(null, '', `${location.pathname}${currentQuery()}`), 200);
+  }
+
+  const initial = decodeState(location.search);
+  shortlist.merge(initial.shortlist);
+  setBuffer(initial.buffer);
+  for (const id of initial.doors) doors.setOpen(id, true, false);
+  const requested = initial.stove ? byId.get(initial.stove) : undefined;
+  if (initial.stove && !requested) toast(`Stufa "${initial.stove}" non trovata nel catalogo`);
+  else if (requested && !requested.dims) toast(`${requested.brand} ${requested.model} non ha dimensioni: non posizionabile`);
+  select(requested?.dims ? requested : null);
+  const start = placement.getPose();
+  if (start) placement.setPose({ x: initial.x ?? start.x, z: initial.z ?? start.z, r: initial.r ?? start.r });
+
+  placement.onChange(syncUrl);
+  doors.onChange(syncUrl);
+  shortlist.onChange(syncUrl);
+  renderSharePanel(section('share'), () => `${location.origin}${location.pathname}${currentQuery()}`, toast);
 
   const camPos = new THREE.Vector3();
   viewer.onFrame(() => {
