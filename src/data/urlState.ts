@@ -6,9 +6,10 @@ export interface ViewerState {
   doors: string[];
   shortlist: string[];
   buffer: boolean;
+  front: boolean;
 }
 
-export const EMPTY_STATE: ViewerState = { stove: null, x: null, z: null, r: null, doors: [], shortlist: [], buffer: true };
+export const EMPTY_STATE: ViewerState = { stove: null, x: null, z: null, r: null, doors: [], shortlist: [], buffer: true, front: false };
 
 function numParam(p: URLSearchParams, key: string): number | null {
   const v = p.get(key);
@@ -35,6 +36,7 @@ export function decodeState(search: string): ViewerState {
     doors: listParam(p, 'doors'),
     shortlist: listParam(p, 'shortlist'),
     buffer: p.get('buffer') !== '0',
+    front: p.get('front') === '1',
   };
 }
 
@@ -47,6 +49,7 @@ export function encodeState(s: ViewerState): string {
   if (s.doors.length) p.set('doors', s.doors.join(','));
   if (s.shortlist.length) p.set('shortlist', s.shortlist.join(','));
   if (!s.buffer) p.set('buffer', '0');
+  if (s.front) p.set('front', '1');
   const q = p.toString().replace(/%2C/g, ',');
   return q ? `?${q}` : '';
 }

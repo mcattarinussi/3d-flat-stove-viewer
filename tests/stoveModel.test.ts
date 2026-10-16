@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { baseHeight, buildChimney, buildStove, collarOf, frontLayout } from '../src/scene/stoveModel';
+import { baseHeight, buildChimney, buildStove, collarOf, cropUv, frontAspect, frontLayout, frontPhotoRect } from '../src/scene/stoveModel';
 import { stove } from './fixtures';
 
 function expectBox(obj: THREE.Object3D, w: number, h: number, d: number) {
@@ -104,5 +104,38 @@ describe('collar and flue hint', () => {
     expect(up.max.y).toBeCloseTo(2.7);
     expect((up.min.z + up.max.z) / 2).toBeCloseTo(-0.433 / 2 - 0.25);
     expect(g.getObjectByName('chimney-elbow')).toBeDefined();
+  });
+});
+
+describe('front photo', () => {
+  const s = stove({ dims });
+  const front = { texture: new THREE.Texture(), crop: { x: 0.2, y: 0.1, w: 0.5, h: 0.8 } };
+
+  it('maps a top-left crop to flipped UVs', () => {
+    const uv = cropUv(front.crop);
+    expect(uv.u0).toBeCloseTo(0.2);
+    expect(uv.u1).toBeCloseTo(0.7);
+    expect(uv.v0).toBeCloseTo(0.1);
+    expect(uv.v1).toBeCloseTo(0.9);
+  });
+
+  it('covers the front between the base and the collar', () => {
+    const r = frontPhotoRect(s);
+    expect(r.x1 - r.x0).toBeCloseTo(0.504);
+    expect(r.y0).toBeCloseTo(baseHeight(s));
+    expect(r.y1).toBeCloseTo(1.282 - collarOf(s).height);
+    expect(frontAspect(s)).toBeCloseTo(0.504 / (r.y1 - r.y0));
+  });
+
+  it('replaces the door panels and keeps the exact bounding box', () => {
+    expect(buildStove(s).getObjectByName('panels')).toBeDefined();
+    const g = buildStove(s, front);
+    expect(g.getObjectByName('panels')).toBeUndefined();
+    const photo = g.getObjectByName('front-photo') as THREE.Mesh;
+    const uv = photo.geometry.getAttribute('uv');
+    expect([uv.getX(0), uv.getY(0)]).toEqual([expect.closeTo(0.2), expect.closeTo(0.9)]);
+    expect([uv.getX(3), uv.getY(3)]).toEqual([expect.closeTo(0.7), expect.closeTo(0.1)]);
+    expect((photo.material as THREE.Material).userData.disposable).toBe(true);
+    expectBox(g, 0.504, 1.282, 0.433);
   });
 });

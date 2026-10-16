@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
+import type { Crop } from '../data/images';
 import type { Dims, Stove } from '../data/types';
 
 export interface Panel {
@@ -75,6 +76,28 @@ export function frontLayout(s: Stove): Panel[] {
   return [{ kind: 'glass', x0: -0.35 * w, x1: 0.35 * w, y0: at(0.4), y1: at(0.85) }];
 }
 
+export interface FrontPhoto {
+  texture: THREE.Texture;
+  crop: Crop;
+}
+
+/** Area of the front face the photo covers: full width, from the base to the top of the body. */
+export function frontPhotoRect(s: Stove): { x0: number; x1: number; y0: number; y1: number } {
+  const { w } = dimsOf(s);
+  return { x0: -w / 2, x1: w / 2, y0: baseHeight(s), y1: bodyTop(s) };
+}
+
+/** Width / height of that area — the aspect a front crop should have. */
+export function frontAspect(s: Stove): number {
+  const r = frontPhotoRect(s);
+  return (r.x1 - r.x0) / (r.y1 - r.y0);
+}
+
+/** Crop (top-left origin) → texture UVs (three.js v grows upwards). */
+export function cropUv(c: Crop): { u0: number; u1: number; v0: number; v1: number } {
+  return { u0: c.x, u1: c.x + c.w, v0: 1 - (c.y + c.h), v1: 1 - c.y };
+}
+
 let shared: ReturnType<typeof makeMaterials> | null = null;
 function makeMaterials() {
   return {
@@ -98,7 +121,7 @@ function mesh(geo: THREE.BufferGeometry, mat: THREE.Material, x: number, y: numb
   return m;
 }
 
-export function buildStove(s: Stove): THREE.Group {
+export function buildStove(s: Stove, front?: FrontPhoto): THREE.Group {
   const { w, d } = dimsOf(s);
   const m = mats();
   const g = new THREE.Group();
@@ -139,18 +162,34 @@ export function buildStove(s: Stove): THREE.Group {
   if (collar.position === 'rear') collarMesh.rotation.x = Math.PI / 2;
   g.add(collarMesh);
 
-  for (const p of frontLayout(s)) {
-    const pw = p.x1 - p.x0;
-    const ph = p.y1 - p.y0;
-    const cx = (p.x0 + p.x1) / 2;
-    const cy = (p.y0 + p.y1) / 2;
-    // Frame stops short of the front plane; glass and handle reach it.
-    g.add(mesh(new THREE.BoxGeometry(pw, ph, FRONT * 0.7), m.dark, cx, cy, d / 2 - FRONT + (FRONT * 0.7) / 2));
-    if (p.kind !== 'ash') {
-      const glass = p.kind === 'glass' ? m.fireGlass : m.ovenGlass;
-      g.add(mesh(new THREE.BoxGeometry(pw - 0.04, ph - 0.04, FRONT * 0.5), glass, cx, cy, d / 2 - FRONT * 0.25));
+  if (front) {
+    const r = frontPhotoRect(s);
+    const geo = new THREE.PlaneGeometry(r.x1 - r.x0, r.y1 - r.y0);
+    const { u0, u1, v0, v1 } = cropUv(front.crop);
+    // PlaneGeometry vertices: top-left, top-right, bottom-left, bottom-right.
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute([u0, v1, u1, v1, u0, v0, u1, v0], 2));
+    const mat = new THREE.MeshStandardMaterial({ map: front.texture, roughness: 0.6 });
+    mat.userData.disposable = true;
+    const photo = mesh(geo, mat, 0, (r.y0 + r.y1) / 2, d / 2);
+    photo.name = 'front-photo';
+    g.add(photo);
+  } else {
+    const panels = new THREE.Group();
+    panels.name = 'panels';
+    for (const p of frontLayout(s)) {
+      const pw = p.x1 - p.x0;
+      const ph = p.y1 - p.y0;
+      const cx = (p.x0 + p.x1) / 2;
+      const cy = (p.y0 + p.y1) / 2;
+      // Frame stops short of the front plane; glass and handle reach it.
+      panels.add(mesh(new THREE.BoxGeometry(pw, ph, FRONT * 0.7), m.dark, cx, cy, d / 2 - FRONT + (FRONT * 0.7) / 2));
+      if (p.kind !== 'ash') {
+        const glass = p.kind === 'glass' ? m.fireGlass : m.ovenGlass;
+        panels.add(mesh(new THREE.BoxGeometry(pw - 0.04, ph - 0.04, FRONT * 0.5), glass, cx, cy, d / 2 - FRONT * 0.25));
+      }
+      panels.add(mesh(new THREE.BoxGeometry(0.02, Math.min(0.1, ph * 0.5), FRONT * 0.3), m.handle, p.x1 - 0.03, cy, d / 2 - FRONT * 0.15));
     }
-    g.add(mesh(new THREE.BoxGeometry(0.02, Math.min(0.1, ph * 0.5), FRONT * 0.3), m.handle, p.x1 - 0.03, cy, d / 2 - FRONT * 0.15));
+    g.add(panels);
   }
   return g;
 }

@@ -74,6 +74,7 @@ async function main(): Promise<void> {
     nudge: (dir, step) => placement.nudge(dir, step),
     rotate: (delta) => placement.rotateBy(delta),
     snap: () => placement.snap(),
+    toggleFront: (on) => setFront(on),
   });
   placement.onChange(() => placementPanel.setDistances(placement.distances()));
 
@@ -82,6 +83,24 @@ async function main(): Promise<void> {
   let current: Stove | null = null;
   let bufferOn = true;
   let bufferGroup: THREE.Object3D | null = null;
+  let frontOn = false;
+  const textures = new Map<string, Promise<THREE.Texture>>();
+
+  function frontTexture(path: string): Promise<THREE.Texture> {
+    let p = textures.get(path);
+    if (!p) {
+      p = new THREE.TextureLoader().loadAsync(imageUrl(path)).then((t) => {
+        t.colorSpace = THREE.SRGBColorSpace;
+        return t;
+      });
+      p.catch(() => textures.delete(path));
+      textures.set(path, p);
+    }
+    return p;
+  }
+
+  /** A saved crop exists and no GLB model overrides the parametric stove. */
+  const frontAvailable = (s: Stove | null): boolean => !!s && images.fronts.has(s.id) && !overrides.has(s.id);
 
   function showStove(s: Stove | null): void {
     // Every call invalidates a GLB still loading for a previously selected stove.
@@ -90,6 +109,7 @@ async function main(): Promise<void> {
     bufferGroup = null;
     if (!current?.dims) {
       placement.setStove(null);
+      placementPanel.setFront({ available: false, on: frontOn });
       return;
     }
     bufferGroup = buildBuffer(current.dims, current.safety);
@@ -102,7 +122,24 @@ async function main(): Promise<void> {
       void loadStoveObject(current, overrides).then((obj) => {
         if (token === showToken) placement.replaceObject(obj);
       });
+    } else if (frontOn && frontAvailable(current)) {
+      // Same idea for the front photo: swap the textured stove in once the image has loaded.
+      const shown = current;
+      const front = images.fronts.get(shown.id)!;
+      frontTexture(front.image)
+        .then((texture) => {
+          if (token === showToken) placement.replaceObject(buildStove(shown, { texture, crop: front.crop }));
+        })
+        .catch(() => toast('Foto frontale non caricata'));
     }
+    placementPanel.setFront({ available: frontAvailable(current), on: frontOn });
+  }
+
+  function setFront(on: boolean): void {
+    frontOn = on;
+    showStove(current);
+    renderCard();
+    syncUrl();
   }
 
   function setBuffer(on: boolean): void {
@@ -158,6 +195,7 @@ async function main(): Promise<void> {
       onToggleStar: () => {
         if (current) shortlist.toggle(current.id);
       },
+      front: { available: frontAvailable(current), on: frontOn, onToggle: (on) => setFront(on) },
     });
   }
 
@@ -195,6 +233,7 @@ async function main(): Promise<void> {
       doors: doors.openIds(),
       shortlist: withShortlist ? shortlist.ids() : [],
       buffer: bufferOn,
+      front: frontOn,
     });
   }
   function syncUrl(): void {
@@ -205,6 +244,7 @@ async function main(): Promise<void> {
   const initial = decodeState(location.search);
   shortlist.merge(initial.shortlist);
   setBuffer(initial.buffer);
+  frontOn = initial.front;
   for (const id of initial.doors) doors.setOpen(id, true, false);
   const requested = initial.stove ? byId.get(initial.stove) : undefined;
   if (initial.stove && !requested) toast(`Stufa "${initial.stove}" non trovata nel catalogo`);
