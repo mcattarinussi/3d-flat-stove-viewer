@@ -97,3 +97,36 @@ table.cmp td.best { background: var(--best); font-weight: 600; }
   .stage { grid-row: 1; height: 55vh; }
   .sidebar { grid-row: 2; border-right: none; overflow: visible; }
 }
+/* Details window */
+.details { position: absolute; top: 12px; right: 12px; width: 380px; max-height: calc(100% - 24px); overflow-y: auto; background: var(--panel); border-radius: 10px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35); z-index: 5; }
+.details[hidden] { display: none; }
+.details-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; background: var(--panel); border-bottom: 1px solid var(--line); cursor: move; touch-action: none; }
+.details-head h3 { margin: 0; font-size: 15px; }
+.details-close { border: none; background: none; font-size: 16px; }
+.details-body { padding: 10px 12px 14px; }
+.details-body dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 8px 0; font-size: 13px; }
+.details-body dt { color: var(--muted); }
+.details-body dd { margin: 0; }
+.details-body h4 { margin: 12px 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.details-body .warn { color: var(--accent); font-size: 13px; }
+.details-meta { justify-content: space-between; }
+.gallery-main { display: block; width: 100%; height: 240px; object-fit: contain; background: #f3f2ee; border-radius: 6px; cursor: zoom-in; margin: 6px 0; }
+.thumbs { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 4px; }
+.thumbs img { width: 48px; height: 48px; object-fit: cover; border: 2px solid transparent; border-radius: 4px; cursor: pointer; flex: none; }
+.thumbs img.active { border-color: var(--accent); }
+.front-toggle { display: block; margin: 6px 0; font-size: 13px; }
+.details-sources { margin-top: 8px; }
+
+/* Lightbox */
+.lightbox { position: fixed; inset: 0; z-index: 20; background: rgba(0, 0, 0, 0.88); display: flex; align-items: center; justify-content: center; }
+.lightbox-img { max-width: 92vw; max-height: 86vh; object-fit: contain; background: #fff; }
+.lightbox-count { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); color: #fff; font-size: 13px; }
+.lightbox button { position: absolute; background: rgba(255, 255, 255, 0.15); color: #fff; border: none; font-size: 28px; width: 48px; height: 48px; border-radius: 24px; }
+.lightbox-prev { left: 16px; top: 50%; }
+.lightbox-next { right: 16px; top: 50%; }
+.lightbox-close { right: 16px; top: 16px; font-size: 20px !important; }
+
+@media (max-width: 800px) {
+  .details { position: fixed; left: 0 !important; right: 0; top: auto !important; bottom: 0; width: auto; max-height: 60vh; border-radius: 12px 12px 0 0; }
+  .details-head { cursor: default; }
+}

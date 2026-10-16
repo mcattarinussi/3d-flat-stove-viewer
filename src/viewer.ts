@@ -11,6 +11,8 @@ import { renderFilters } from './ui/filtersPanel';
 import { ResultsList } from './ui/resultsList';
 import { renderStoveCard } from './ui/stoveCard';
 import type { Stove } from './data/types';
+import { imageUrl, loadImages, picturesFor } from './data/images';
+import { DetailsWindow } from './ui/detailsWindow';
 import { buildBuffer } from './scene/buffer';
 import { PlacementController } from './scene/placement';
 import { buildChimney, buildStove, loadModelIndex, loadStoveObject } from './scene/stoveModel';
@@ -59,6 +61,8 @@ async function main(): Promise<void> {
 
   const catalogue = await loadCatalogue('./data/stoves.json');
   const byId = new Map(catalogue.stoves.map((s) => [s.id, s]));
+  const images = await loadImages();
+  const details = new DetailsWindow(document.querySelector<HTMLElement>('.stage')!);
   const placement = new PlacementController({
     dom: canvas,
     root: viewer.root,
@@ -136,14 +140,20 @@ async function main(): Promise<void> {
     results.setItems(sortStoves(r.visible, sortKey), notes.filter(Boolean));
   }
 
+  function toggleBuffer(on: boolean): void {
+    setBuffer(on);
+    syncUrl();
+    renderCard();
+  }
+
+  /** Renders the sidebar card and the details window for the current stove. */
   function renderCard(): void {
-    renderStoveCard(section('stove-card'), current, {
+    renderStoveCard(section('stove-card'), current, { bufferOn, onBufferToggle: toggleBuffer, onOpenDetails: () => details.open() });
+    details.render(current, {
       categories: catalogue.categories,
+      pictures: current ? picturesFor(current.id, images).map((path) => ({ path, url: imageUrl(path) })) : [],
       bufferOn,
-      onBufferToggle: (on) => {
-        setBuffer(on);
-        syncUrl();
-      },
+      onBufferToggle: toggleBuffer,
       starred: current ? shortlist.has(current.id) : false,
       onToggleStar: () => {
         if (current) shortlist.toggle(current.id);
@@ -155,6 +165,7 @@ async function main(): Promise<void> {
     showStove(s);
     results.setSelected(current?.id ?? null);
     renderCard();
+    if (current) details.open();
     syncUrl();
   }
 
