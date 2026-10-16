@@ -4,3 +4,4 @@ dist/
 assets/catalogues/
 assets/photos/
 .DS_Store
+.venv/
