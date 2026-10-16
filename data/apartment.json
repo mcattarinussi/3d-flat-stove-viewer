@@ -1,0 +1,22 @@
+{
+  "units": "m",
+  "ceiling_height": 2.7,
+  "wall_thickness": 0.2,
+  "room": {
+    "id": "ingresso",
+    "name": "Ingresso",
+    "width": 2.0,
+    "depth": 3.4,
+    "floor": { "material": "marble" },
+    "openings": [
+      { "id": "entrata", "name": "Porta d'ingresso", "wall": "south", "from": 0.55, "to": 1.45, "height": 2.1, "door": { "hinge": "to", "swing": "in", "glazed": true } },
+      { "id": "disimpegno", "name": "Disimpegno (zona notte)", "wall": "north", "from": 0.63, "to": 1.43, "height": 2.1, "transom": 0.5, "door": { "hinge": "from", "swing": "out", "glazed": true } },
+      { "id": "scale", "name": "Scale", "wall": "west", "from": 2.25, "to": 3.05, "height": 2.1, "door": { "hinge": "to", "swing": "in", "glazed": true } },
+      { "id": "cucina", "name": "Cucina", "wall": "west", "from": 0.72, "to": 1.52, "height": 2.1, "door": { "hinge": "from", "swing": "out", "glazed": false } },
+      { "id": "soggiorno", "name": "Soggiorno", "wall": "east", "from": 0.72, "to": 1.52, "height": 2.1, "door": { "hinge": "from", "swing": "out", "glazed": false } }
+    ],
+    "fixtures": [
+      { "id": "radiatore", "type": "radiator", "wall": "east", "from": 0.1, "to": 0.6, "height": 0.85, "depth": 0.12, "elevation": 0.12 }
+    ]
+  }
+}
