@@ -2,6 +2,9 @@ import * as THREE from 'three';
 import './style.css';
 import { loadApartment } from './data/apartment';
 import { CameraRig } from './scene/camera';
+import { Doors } from './scene/doors';
+import { onTap, pickAt } from './scene/pick';
+import { renderDoorsPanel } from './ui/doorsPanel';
 import { buildRoom } from './scene/room';
 import { createViewer } from './scene/setup';
 import { showFatal } from './ui/fatal';
@@ -26,7 +29,19 @@ async function main(): Promise<void> {
     reset: () => rig.reset(),
   });
 
-  // [doors]
+  const doors = new Doors(apartment);
+  viewer.root.add(doors.group);
+  const doorsPanel = renderDoorsPanel(section('doors'), doors.list(), {
+    toggle: (id) => doors.toggle(id),
+    setAll: (open) => doors.setAll(open),
+  });
+  doors.onChange(() => doorsPanel.update(doors.openIds()));
+  viewer.onFrame((dt) => doors.update(dt));
+  onTap(canvas, (ev) => {
+    const hit = pickAt(ev, canvas, rig.camera, doors.pickables());
+    const id = doors.idFromObject(hit?.object ?? null);
+    if (id) doors.toggle(id);
+  });
 
   // [stove]
 
@@ -36,6 +51,7 @@ async function main(): Promise<void> {
     rig.camera.getWorldPosition(camPos);
     const local = viewer.root.worldToLocal(camPos);
     roomView.updateCutaway({ x: local.x, z: local.z });
+    doors.setHiddenWalls(new Set([...roomView.walls].filter(([, g]) => !g.visible).map(([w]) => w)));
   });
   viewer.start(() => rig.camera);
 }
