@@ -52,7 +52,6 @@ export function renderFilters(container: HTMLElement, ctx: FiltersContext, initi
           emit();
         },
       }),
-      group('Categoria', checks(Object.entries(ctx.catalogue.categories).map(([value, label]) => ({ value, label })), state.categories, emit)),
       group(
         'Marca',
         checks(ctx.catalogue.brands.map((b) => ({ value: b, label: `${b} (${ctx.brandCounts.get(b) ?? 0})` })), state.brands, emit, true),
@@ -78,14 +77,14 @@ export function renderFilters(container: HTMLElement, ctx: FiltersContext, initi
           toggle('Solo con distanze di sicurezza', state.onlyWithSafety, (v) => ((state.onlyWithSafety = v), emit())),
           toggle('Solo con prezzo', state.onlyWithPrice, (v) => ((state.onlyWithPrice = v), emit())),
           toggle('Con forno', state.onlyWithOven, (v) => ((state.onlyWithOven = v), emit())),
-          toggle('Ci sta nella parete libera (1,88 m)', state.fitsFreeWall, (v) => ((state.fitsFreeWall = v), emit())),
+          toggle('Profondità max 57 cm (parete libera)', state.fitsFreeWall, (v) => ((state.fitsFreeWall = v), emit())),
         ),
       ),
       el(
         'button',
         {
           onclick: () => {
-            const fresh = defaultFilters(ctx.catalogue.categories);
+            const fresh = defaultFilters();
             draw(fresh);
             onChange(fresh);
           },

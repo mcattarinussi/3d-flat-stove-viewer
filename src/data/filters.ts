@@ -10,7 +10,6 @@ export interface Range {
 }
 
 export interface FilterState {
-  categories: Set<string>;
   brands: Set<string>;
   ranges: Record<RangeKey, Range | null>;
   minStars: number | null;
@@ -30,9 +29,8 @@ export interface FilterResult {
 
 export type SortKey = 'price' | 'kw' | 'width' | 'name';
 
-export function defaultFilters(categories: Record<string, string>): FilterState {
+export function defaultFilters(): FilterState {
   return {
-    categories: new Set(Object.keys(categories).filter((c) => c !== 'insert')),
     brands: new Set(),
     ranges: { kw: null, price: null, width: null, depth: null, height: null },
     minStars: null,
@@ -61,15 +59,11 @@ export function rangeValue(s: Stove, key: RangeKey): number | null {
 }
 
 export function fitsFreeWall(s: Stove): boolean {
-  if (!s.dims) return false;
-  const len = FREE_WALL.to - FREE_WALL.from;
-  const { w, d } = s.dims;
-  return (w <= len && d <= FREE_WALL.depth) || (d <= len && w <= FREE_WALL.depth);
+  return s.dims !== null && s.dims.d <= FREE_WALL.maxDepth + 1e-9;
 }
 
 /** `lenient` treats null values as passing the data-dependent filters (ranges, stars, energy class). */
 function passes(s: Stove, f: FilterState, lenient: boolean): boolean {
-  if (!f.categories.has(s.category)) return false;
   if (f.brands.size > 0 && !f.brands.has(s.brand)) return false;
   for (const key of RANGE_KEYS) {
     const r = f.ranges[key];

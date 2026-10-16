@@ -1,11 +1,11 @@
 import type { Apartment, DoorSpec, Fixture, Opening, Room, Wall } from './types';
 
-/** Free east-wall segment between the soggiorno door and the north corner; `depth` is the room width in front of it. */
-export const FREE_WALL: { wall: Wall; from: number; to: number; depth: number } = {
+/** Free east-wall segment between the soggiorno door and the north corner; `maxDepth` keeps the passage clear. */
+export const FREE_WALL: { wall: Wall; from: number; to: number; maxDepth: number } = {
   wall: 'east',
   from: 1.52,
   to: 3.4,
-  depth: 2,
+  maxDepth: 0.57,
 };
 
 const WALLS: Wall[] = ['north', 'south', 'east', 'west'];

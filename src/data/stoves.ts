@@ -1,6 +1,9 @@
 import type { Catalogue, Dims, EnergyClass, FlueOutlet, RawCatalogue, RawStove, Safety, SourceRef, Stove } from './types';
 
 const ROUND_RE = /cilindr|rotond|round/i;
+
+/** Not stufe a legna: cookers, boiler stoves and fireplace inserts. Unknown categories are kept. */
+export const EXCLUDED_CATEGORIES = ['cookstove', 'thermo_stove', 'thermo_cookstove', 'insert'];
 const OUTLETS: FlueOutlet[] = ['top', 'rear', 'side'];
 
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
@@ -84,9 +87,10 @@ export function normaliseStove(raw: RawStove): Stove {
 }
 
 export function normaliseCatalogue(raw: RawCatalogue): Catalogue {
-  const stoves = raw.stoves.map(normaliseStove);
+  const stoves = raw.stoves.filter((s) => !EXCLUDED_CATEGORIES.includes(s.category)).map(normaliseStove);
   const brands = [...new Set(stoves.map((s) => s.brand))].sort((a, b) => a.localeCompare(b));
-  return { stoves, categories: raw.categories, brands };
+  const categories = Object.fromEntries(Object.entries(raw.categories).filter(([k]) => !EXCLUDED_CATEGORIES.includes(k)));
+  return { stoves, categories, brands };
 }
 
 export async function loadCatalogue(url: string): Promise<Catalogue> {

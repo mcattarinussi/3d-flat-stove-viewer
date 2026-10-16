@@ -2,33 +2,34 @@ import { describe, expect, it } from 'vitest';
 import { applyFilters, defaultFilters, extents, fitsFreeWall, sortStoves, type FilterState } from '../src/data/filters';
 import { stove } from './fixtures';
 
-const CATS = { stove: 'Stufa', insert: 'Inserto', cookstove: 'Cucina' };
-const base = (): FilterState => defaultFilters(CATS);
+const base = (): FilterState => defaultFilters();
 const ids = (r: { visible: { id: string }[] }) => r.visible.map((s) => s.id);
 
 describe('defaultFilters', () => {
-  it('enables every category except insert', () => {
-    expect([...base().categories].sort()).toEqual(['cookstove', 'stove']);
+  it('starts with every filter untouched', () => {
+    const f = base();
+    expect(f.brands.size).toBe(0);
+    expect(Object.values(f.ranges).every((r) => r === null)).toBe(true);
+    expect(f.fitsFreeWall).toBe(false);
+    expect('categories' in f).toBe(false);
   });
 });
 
 describe('applyFilters', () => {
   const a = stove({ id: 'a', brand: 'Alfa', model: 'Uno', kw: 8, price: 2000, category: 'stove' });
-  const b = stove({ id: 'b', brand: 'Beta', model: 'Due', kw: 12, price: null, category: 'cookstove', hasOven: true });
-  const c = stove({ id: 'c', brand: 'Alfa', model: 'Tre', kw: null, price: 3000, category: 'insert' });
+  const b = stove({ id: 'b', brand: 'Beta', model: 'Due', kw: 12, price: null, category: 'stove_with_oven', hasOven: true });
+  const c = stove({ id: 'c', brand: 'Alfa', model: 'Tre', kw: null, price: 3000, category: 'storage_stove' });
   const noDims = stove({ id: 'n', dims: null });
   const all = [a, b, c, noDims];
 
-  it('hides stoves without dims and counts them', () => {
+  it('hides stoves without dims and counts them, whatever the category', () => {
     const r = applyFilters(all, base());
-    expect(ids(r)).toEqual(['a', 'b']);
+    expect(ids(r)).toEqual(['a', 'b', 'c']);
     expect(r.noDims).toBe(1);
   });
 
   it('untouched ranges let nulls through; narrowed ranges exclude them and count them', () => {
     const f = base();
-    f.categories.add('insert');
-    expect(ids(applyFilters(all, f))).toEqual(['a', 'b', 'c']);
     f.ranges.kw = { min: 4, max: 10 };
     const r = applyFilters(all, f);
     expect(ids(r)).toEqual(['a']);
@@ -50,7 +51,7 @@ describe('applyFilters', () => {
 
     const p = base();
     p.onlyWithPrice = true;
-    expect(ids(applyFilters(all, p))).toEqual(['a']);
+    expect(ids(applyFilters(all, p))).toEqual(['a', 'c']);
 
     const s = base();
     s.onlyWithSafety = true;
@@ -74,13 +75,21 @@ describe('applyFilters', () => {
     f.ranges.width = { min: 0.4, max: 0.5 };
     expect(ids(applyFilters([stove({ id: 'w', dims: { w: 0.45, d: 0.4, h: 1 } }), stove({ id: 'v', dims: { w: 0.6, d: 0.4, h: 1 } })], f))).toEqual(['w']);
   });
+
+  it('free-wall toggle keeps stoves at most 57 cm deep', () => {
+    const f = base();
+    f.fitsFreeWall = true;
+    const list = [stove({ id: 'ok', dims: { w: 1.2, d: 0.57, h: 1 } }), stove({ id: 'deep', dims: { w: 0.4, d: 0.58, h: 1 } })];
+    expect(ids(applyFilters(list, f))).toEqual(['ok']);
+  });
 });
 
 describe('fitsFreeWall', () => {
-  it('accepts footprints that fit in either orientation', () => {
+  it('only looks at depth', () => {
     expect(fitsFreeWall(stove({ dims: { w: 0.5, d: 0.43, h: 1.2 } }))).toBe(true);
-    expect(fitsFreeWall(stove({ dims: { w: 1.95, d: 0.6, h: 1 } }))).toBe(true);
-    expect(fitsFreeWall(stove({ dims: { w: 2.1, d: 1.9, h: 1 } }))).toBe(false);
+    expect(fitsFreeWall(stove({ dims: { w: 1.95, d: 0.5, h: 1 } }))).toBe(true);
+    expect(fitsFreeWall(stove({ dims: { w: 0.5, d: 0.57, h: 1 } }))).toBe(true);
+    expect(fitsFreeWall(stove({ dims: { w: 0.4, d: 0.571, h: 1 } }))).toBe(false);
     expect(fitsFreeWall(stove({ dims: null }))).toBe(false);
   });
 });

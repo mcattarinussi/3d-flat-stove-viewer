@@ -78,14 +78,34 @@ describe('sources', () => {
   });
 });
 
+describe('normaliseCatalogue scope', () => {
+  it('drops cookers, boiler stoves and inserts, keeps unknown categories', () => {
+    const cat = normaliseCatalogue({
+      categories: { stove: 'Stufa', cookstove: 'Cucina', weird: 'Altro', insert: 'Inserto' },
+      stoves: [
+        rawStove({ id: 'a' }),
+        rawStove({ id: 'b', category: 'cookstove' }),
+        rawStove({ id: 'c', category: 'weird', brand: 'Zeta' }),
+        rawStove({ id: 'd', category: 'insert', brand: 'Gone' }),
+        rawStove({ id: 'e', category: 'thermo_stove' }),
+        rawStove({ id: 'f', category: 'thermo_cookstove' }),
+      ],
+    });
+    expect(cat.stoves.map((s) => s.id)).toEqual(['a', 'c']);
+    expect(Object.keys(cat.categories)).toEqual(['stove', 'weird']);
+    expect(cat.brands).toEqual(['Eva Calor', 'Zeta']);
+  });
+});
+
 describe('real catalogue', () => {
   const raw = JSON.parse(readFileSync('data/stoves.json', 'utf8'));
   const cat = normaliseCatalogue(raw);
 
-  it('matches the summary counts', () => {
-    expect(cat.stoves).toHaveLength(668);
-    expect(cat.stoves.filter((s) => s.dims).length).toBe(602);
-    expect(cat.stoves.filter((s) => s.safety).length).toBe(219);
+  it('keeps only wood stoves', () => {
+    expect(cat.stoves).toHaveLength(539);
+    expect(cat.stoves.filter((s) => s.dims).length).toBe(473);
+    expect(cat.stoves.filter((s) => s.safety).length).toBe(198);
+    expect(Object.keys(cat.categories).sort()).toEqual(['fireplace_stove', 'storage_stove', 'stove', 'stove_with_oven']);
   });
 
   it('lists brands sorted and unique', () => {

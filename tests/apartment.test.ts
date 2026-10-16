@@ -58,6 +58,6 @@ describe('helpers', () => {
   });
 
   it('FREE_WALL is the east segment north of the soggiorno door', () => {
-    expect(FREE_WALL).toEqual({ wall: 'east', from: 1.52, to: 3.4, depth: 2 });
+    expect(FREE_WALL).toEqual({ wall: 'east', from: 1.52, to: 3.4, maxDepth: 0.57 });
   });
 });

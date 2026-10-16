@@ -112,7 +112,7 @@ async function main(): Promise<void> {
   window.addEventListener('pageshow', (e) => e.persisted && shortlist.reload());
   const brandCounts = new Map<string, number>();
   for (const s of catalogue.stoves) brandCounts.set(s.brand, (brandCounts.get(s.brand) ?? 0) + 1);
-  let filters = defaultFilters(catalogue.categories);
+  let filters = defaultFilters();
   let sortKey: SortKey = 'price';
 
   const results = new ResultsList(section('results'), {
