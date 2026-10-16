@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import './style.css';
-import { loadApartment } from './data/apartment';
+import { freeWallLimits, loadApartment } from './data/apartment';
 import { loadCatalogue } from './data/stoves';
 import { applyFilters, defaultFilters, extents, sortStoves, type SortKey } from './data/filters';
 import { safeLocalStorage, Shortlist, SHORTLIST_KEY } from './data/shortlist';
@@ -67,7 +67,7 @@ async function main(): Promise<void> {
   const placement = new PlacementController({
     dom: canvas,
     root: viewer.root,
-    room: { width: apartment.room.width, depth: apartment.room.depth },
+    room: { width: apartment.room.width, depth: apartment.room.depth, inset: apartment.room.finishes.skirting?.thickness ?? 0 },
     getCamera: () => rig.camera,
     getControls: () => rig.controls,
   });
@@ -206,7 +206,8 @@ async function main(): Promise<void> {
     onToggleStar: (id) => shortlist.toggle(id),
     isStarred: (id) => shortlist.has(id),
   });
-  renderFilters(section('filters'), { catalogue, brandCounts, extents: extents(catalogue.stoves.filter((s) => s.dims)) }, filters, (f) => {
+  const limits = freeWallLimits(apartment);
+  renderFilters(section('filters'), { catalogue, brandCounts, extents: extents(catalogue.stoves.filter((s) => s.dims)), freeWallLimits: limits }, filters, (f) => {
     filters = f;
     refreshResults();
   });

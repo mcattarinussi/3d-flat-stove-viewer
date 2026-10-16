@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { FREE_WALL, parseApartment, wallLength } from '../src/data/apartment';
+import { FREE_WALL, freeWallLimits, parseApartment, wallLength } from '../src/data/apartment';
 
 const realRaw = () => JSON.parse(readFileSync('data/apartment.json', 'utf8'));
 
@@ -23,7 +23,7 @@ describe('parseApartment', () => {
     expect(byId['termostato'].type).toBe('thermostat');
     expect(byId['presa']).toMatchObject({ type: 'socket', gangs: 1 });
     expect(byId['radiatore'].gangs).toBe(1);
-    expect(apt.room.finishes).toEqual({ skirting: { height: 0.08, thickness: 0.01 }, sills: true });
+    expect(apt.room.finishes).toEqual({ skirting: { height: 0.08, thickness: 0.01 }, sills: true, casing: 0.095 });
     expect(apt.room.openings.find((o) => o.id === 'scale')!.door!.swing).toBe('out');
   });
 
@@ -36,7 +36,10 @@ describe('parseApartment', () => {
   it('defaults finishes to none and validates them', () => {
     const raw = realRaw();
     delete raw.room.finishes;
-    expect(parseApartment(raw).room.finishes).toEqual({ skirting: null, sills: false });
+    expect(parseApartment(raw).room.finishes).toEqual({ skirting: null, sills: false, casing: 0.07 });
+    const badCasing = realRaw();
+    badCasing.room.finishes.casing = 0;
+    expect(() => parseApartment(badCasing)).toThrow(/casing/);
     const bad = realRaw();
     bad.room.finishes.skirting.height = -1;
     expect(() => parseApartment(bad)).toThrow(/skirting/);
@@ -93,6 +96,14 @@ describe('helpers', () => {
   });
 
   it('FREE_WALL is the east segment north of the soggiorno door', () => {
-    expect(FREE_WALL).toEqual({ wall: 'east', from: 1.52, to: 3.4, maxDepth: 0.57 });
+    expect(FREE_WALL).toEqual({ wall: 'east', from: 1.52, to: 3.4, door: 'disimpegno' });
+  });
+
+  it('free-wall depth limits come from the measured door frame and skirting', () => {
+    const apt = parseApartment(realRaw());
+    expect(freeWallLimits(apt)).toEqual({ door: 0.56, wall: 0.465 });
+    const noSkirting = realRaw();
+    delete noSkirting.room.finishes.skirting;
+    expect(freeWallLimits(parseApartment(noSkirting))).toEqual({ door: 0.57, wall: 0.475 });
   });
 });

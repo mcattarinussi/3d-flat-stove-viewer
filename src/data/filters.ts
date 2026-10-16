@@ -1,4 +1,3 @@
-import { FREE_WALL } from './apartment';
 import type { EnergyClass, Stove } from './types';
 
 export type RangeKey = 'kw' | 'price' | 'width' | 'depth' | 'height';
@@ -9,6 +8,8 @@ export interface Range {
   max: number;
 }
 
+export type FreeWallMode = 'door' | 'wall';
+
 export interface FilterState {
   brands: Set<string>;
   ranges: Record<RangeKey, Range | null>;
@@ -17,7 +18,8 @@ export interface FilterState {
   onlyWithSafety: boolean;
   onlyWithPrice: boolean;
   onlyWithOven: boolean;
-  fitsFreeWall: boolean;
+  /** Depth limit for the free wall, or null when the filter is off. */
+  freeWall: { mode: FreeWallMode; maxDepth: number } | null;
   text: string;
 }
 
@@ -38,7 +40,7 @@ export function defaultFilters(): FilterState {
     onlyWithSafety: false,
     onlyWithPrice: false,
     onlyWithOven: false,
-    fitsFreeWall: false,
+    freeWall: null,
     text: '',
   };
 }
@@ -58,8 +60,8 @@ export function rangeValue(s: Stove, key: RangeKey): number | null {
   }
 }
 
-export function fitsFreeWall(s: Stove): boolean {
-  return s.dims !== null && s.dims.d <= FREE_WALL.maxDepth + 1e-9;
+export function fitsDepth(s: Stove, maxDepth: number): boolean {
+  return s.dims !== null && s.dims.d <= maxDepth + 1e-9;
 }
 
 /** `lenient` treats null values as passing the data-dependent filters (ranges, stars, energy class). */
@@ -88,7 +90,7 @@ function passes(s: Stove, f: FilterState, lenient: boolean): boolean {
   if (f.onlyWithSafety && !s.safety) return false;
   if (f.onlyWithPrice && s.price === null) return false;
   if (f.onlyWithOven && !s.hasOven) return false;
-  if (f.fitsFreeWall && !fitsFreeWall(s)) return false;
+  if (f.freeWall && !fitsDepth(s, f.freeWall.maxDepth)) return false;
   const tokens = f.text.toLowerCase().split(/\s+/).filter(Boolean);
   if (tokens.length) {
     const hay = `${s.brand} ${s.model}`.toLowerCase();

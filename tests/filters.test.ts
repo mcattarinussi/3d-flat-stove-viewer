@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyFilters, defaultFilters, extents, fitsFreeWall, sortStoves, type FilterState } from '../src/data/filters';
+import { applyFilters, defaultFilters, extents, fitsDepth, sortStoves, type FilterState } from '../src/data/filters';
 import { stove } from './fixtures';
 
 const base = (): FilterState => defaultFilters();
@@ -10,7 +10,7 @@ describe('defaultFilters', () => {
     const f = base();
     expect(f.brands.size).toBe(0);
     expect(Object.values(f.ranges).every((r) => r === null)).toBe(true);
-    expect(f.fitsFreeWall).toBe(false);
+    expect(f.freeWall).toBeNull();
     expect('categories' in f).toBe(false);
   });
 });
@@ -76,21 +76,26 @@ describe('applyFilters', () => {
     expect(ids(applyFilters([stove({ id: 'w', dims: { w: 0.45, d: 0.4, h: 1 } }), stove({ id: 'v', dims: { w: 0.6, d: 0.4, h: 1 } })], f))).toEqual(['w']);
   });
 
-  it('free-wall toggle keeps stoves at most 57 cm deep', () => {
+  it('free-wall filter keeps stoves within the chosen depth', () => {
+    const list = [
+      stove({ id: 'shallow', dims: { w: 1.2, d: 0.465, h: 1 } }),
+      stove({ id: 'mid', dims: { w: 0.4, d: 0.56, h: 1 } }),
+      stove({ id: 'deep', dims: { w: 0.4, d: 0.561, h: 1 } }),
+    ];
     const f = base();
-    f.fitsFreeWall = true;
-    const list = [stove({ id: 'ok', dims: { w: 1.2, d: 0.57, h: 1 } }), stove({ id: 'deep', dims: { w: 0.4, d: 0.58, h: 1 } })];
-    expect(ids(applyFilters(list, f))).toEqual(['ok']);
+    f.freeWall = { mode: 'door', maxDepth: 0.56 };
+    expect(ids(applyFilters(list, f))).toEqual(['shallow', 'mid']);
+    f.freeWall = { mode: 'wall', maxDepth: 0.465 };
+    expect(ids(applyFilters(list, f))).toEqual(['shallow']);
   });
 });
 
-describe('fitsFreeWall', () => {
+describe('fitsDepth', () => {
   it('only looks at depth', () => {
-    expect(fitsFreeWall(stove({ dims: { w: 0.5, d: 0.43, h: 1.2 } }))).toBe(true);
-    expect(fitsFreeWall(stove({ dims: { w: 1.95, d: 0.5, h: 1 } }))).toBe(true);
-    expect(fitsFreeWall(stove({ dims: { w: 0.5, d: 0.57, h: 1 } }))).toBe(true);
-    expect(fitsFreeWall(stove({ dims: { w: 0.4, d: 0.571, h: 1 } }))).toBe(false);
-    expect(fitsFreeWall(stove({ dims: null }))).toBe(false);
+    expect(fitsDepth(stove({ dims: { w: 1.95, d: 0.5, h: 1 } }), 0.56)).toBe(true);
+    expect(fitsDepth(stove({ dims: { w: 0.5, d: 0.56, h: 1 } }), 0.56)).toBe(true);
+    expect(fitsDepth(stove({ dims: { w: 0.4, d: 0.5601, h: 1 } }), 0.56)).toBe(false);
+    expect(fitsDepth(stove({ dims: null }), 0.56)).toBe(false);
   });
 });
 

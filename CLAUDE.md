@@ -33,11 +33,12 @@ A static Vite + TypeScript + three.js app for placing a wood stove in the apartm
 - **Safety distances.**
   - Never invent a fallback. A null `safety` draws nothing; null fields add 0.
   - There is deliberately no violation or alert logic (spec decision).
-- **Catalogue scope.** Only *stufe a legna*: `EXCLUDED_CATEGORIES` in `stoves.ts` drops cookstove, thermo_stove, thermo_cookstove and insert; unknown categories are kept. The free-wall filter is depth ≤ 0.57 m.
+- **Catalogue scope.** Only *stufe a legna*: `EXCLUDED_CATEGORIES` in `stoves.ts` drops cookstove, thermo_stove, thermo_cookstove and insert; unknown categories are kept. The free-wall filter has two depth limits computed by `freeWallLimits(apartment)` from the night-area door and the skirting (56 cm to the inner edge of the door frame, 46.5 cm to its outer edge); don't hard-code them.
 - **Pictures.** `fronts.json` entries are only valid if their image is listed for that stove in `index.json`; re-running the extractor can invalidate crops. The cropper and `/__fronts` exist only in dev (`import.meta.env.DEV`, Vite `apply: 'serve'`).
 - **Bounding box.** `buildStove()` must produce a bounding box of exactly W×H×D; tests enforce this. Shared stove materials come from `mats()` and must not be disposed. Per-instance materials are flagged `userData.disposable`.
 - **URLs.** Use relative URLs only (`./data/…`, `./models/…`, `./assets/catalogues/…`). Vite runs with `base: './'`, so the site works under any GitHub Pages sub-path.
 - **Local-only assets.** `assets/catalogues/` and `assets/photos/` are git-ignored; never commit them. Code and tests must work when they're absent (CI): the build copies the catalogues only if present, and the source-file test skips.
+- **Skirting gap.** Stoves never touch a wall: placement clamps and snaps with `RoomRect.inset` = skirting thickness.
 - **UI copy** is Italian.
 - **three 0.186** removed `PCFSoftShadowMap`; use `PCFShadowMap`.
 

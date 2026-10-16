@@ -154,6 +154,8 @@ export interface Room {
 export interface Finishes {
   skirting: { height: number; thickness: number } | null;
   sills: boolean;
+  /** Width of the wooden door frames (casings) on the room side. */
+  casing: number;
 }
 
 export interface Apartment {

@@ -106,7 +106,7 @@
 <text x="602.0" y="103.5" font-size="12" fill="#4B5563" text-anchor="middle">3,80 m</text>
 <line x1="710.5" y1="347.0" x2="710.5" y2="87.0" stroke="#6B7280" stroke-width="1" marker-start="url(#a)" marker-end="url(#a)"/>
 <text x="704.5" y="217.0" font-size="12" fill="#4B5563" text-anchor="middle" transform="rotate(-90 704.5 217.0)">3,80 m</text>
-<line x1="425.1" y1="414.4" x2="459.0" y2="414.4" stroke="#6B7280" stroke-width="1" marker-start="url(#a)" marker-end="url(#a)"/><text x="418.6" y="418.4" font-size="12" fill="#4B5563" text-anchor="end">57 cm</text>
+<line x1="422.1" y1="413.4" x2="461.3" y2="413.4" stroke="#6B7280" stroke-width="1" marker-start="url(#a)" marker-end="url(#a)"/><text x="418.6" y="417.4" font-size="12" fill="#4B5563" stroke="#F2F2EE" stroke-width="3" paint-order="stroke" text-anchor="end">56 cm</text><line x1="428.75" y1="427.4" x2="461.3" y2="427.4" stroke="#6B7280" stroke-width="1" marker-start="url(#a)" marker-end="url(#a)"/><text x="458.0" y="442.0" font-size="12" fill="#4B5563" stroke="#F2F2EE" stroke-width="3" paint-order="stroke" text-anchor="end">46,5 cm</text>
 <line x1="455.0" y1="534.6" x2="455.0" y2="409.0" stroke="#6B7280" stroke-width="1" marker-start="url(#a)" marker-end="url(#a)"/>
 <text x="449.0" y="471.8" font-size="12" fill="#4B5563" text-anchor="middle" transform="rotate(-90 449.0 471.8)">1,88 m</text>
 <rect x="448.0" y="693.0" width="308.0" height="105.0" fill="#F5F3EE" stroke="#8A8A84" stroke-width="1.2"/>

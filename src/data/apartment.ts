@@ -1,18 +1,23 @@
 import type { Apartment, DoorSpec, Finishes, Fixture, FixtureType, Opening, Room, Wall } from './types';
 
-/** Free east-wall segment between the soggiorno door and the north corner; `maxDepth` keeps the passage clear. */
-export const FREE_WALL: { wall: Wall; from: number; to: number; maxDepth: number } = {
+/**
+ * Free east-wall segment between the soggiorno door and the north corner. A stove there sticks out
+ * towards the night-area door (`door`), whose frame limits how deep it can be.
+ */
+export const FREE_WALL: { wall: Wall; from: number; to: number; door: string } = {
   wall: 'east',
   from: 1.52,
   to: 3.4,
-  maxDepth: 0.57,
+  door: 'disimpegno',
 };
+
+const DEFAULT_CASING = 0.07;
 
 const WALLS: Wall[] = ['north', 'south', 'east', 'west'];
 const FIXTURE_TYPES: FixtureType[] = ['radiator', 'switch', 'socket', 'thermostat'];
 
 function parseFinishes(v: unknown): Finishes {
-  if (v === undefined || v === null) return { skirting: null, sills: false };
+  if (v === undefined || v === null) return { skirting: null, sills: false, casing: DEFAULT_CASING };
   const f = obj(v, 'room.finishes');
   let skirting: Finishes['skirting'] = null;
   if (f.skirting !== undefined && f.skirting !== null) {
@@ -22,7 +27,9 @@ function parseFinishes(v: unknown): Finishes {
     if (height <= 0 || thickness <= 0) fail('room.finishes.skirting: height e thickness devono essere positivi');
     skirting = { height, thickness };
   }
-  return { skirting, sills: f.sills === true };
+  const casing = f.casing === undefined ? DEFAULT_CASING : reqNum(f, 'casing', 'room.finishes.');
+  if (casing <= 0) fail('room.finishes.casing deve essere positivo');
+  return { skirting, sills: f.sills === true, casing };
 }
 
 /** Vertical extent of an item on its wall: openings from the floor to the top of door + transom. */
@@ -169,4 +176,19 @@ export async function loadApartment(url: string): Promise<Apartment> {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Impossibile caricare ${url} (HTTP ${res.status})`);
   return parseApartment(await res.json());
+}
+
+/**
+ * Deepest stove that fits on the free wall, measured from the skirting (the stove's back rests on it):
+ * `door` = up to the inner edge of the night-area door frame, so the doorway stays clear;
+ * `wall` = up to the outer edge of that frame, i.e. plain wall only.
+ */
+export function freeWallLimits(apt: Apartment): { door: number; wall: number } {
+  const { room } = apt;
+  const door = room.openings.find((o) => o.id === FREE_WALL.door);
+  if (!door) throw new Error(`apartment.json: manca la porta "${FREE_WALL.door}"`);
+  const skirting = room.finishes.skirting?.thickness ?? 0;
+  const mm = (m: number) => Math.round(m * 1000) / 1000;
+  const toDoor = room.width - door.to - skirting;
+  return { door: mm(toDoor), wall: mm(toDoor - room.finishes.casing) };
 }

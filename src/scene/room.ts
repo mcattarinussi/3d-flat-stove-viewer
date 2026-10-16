@@ -64,7 +64,7 @@ export function wallYaw(wall: Wall): number {
 }
 
 /** Along-wall runs that get skirting: corner to corner, interrupted at each opening plus its casing. */
-export function skirtingSegments(room: Room, wall: Wall, thickness: number, casing = 0.07): [number, number][] {
+export function skirtingSegments(room: Room, wall: Wall, thickness: number, casing = room.finishes.casing): [number, number][] {
   const len = wallLength(room, wall);
   const ext = wall === 'north' || wall === 'south' ? thickness : 0;
   const gaps = room.openings
@@ -204,9 +204,10 @@ export function buildRoom(apt: Apartment): RoomView {
       const mid = (o.from + o.to) / 2;
       const width = o.to - o.from;
       // Casing on the room side.
-      add(new THREE.BoxGeometry(0.07, top, 0.02), woodMat, o.from - 0.035, top / 2, -0.01);
-      add(new THREE.BoxGeometry(0.07, top, 0.02), woodMat, o.to + 0.035, top / 2, -0.01);
-      add(new THREE.BoxGeometry(width + 0.14, 0.07, 0.02), woodMat, mid, top + 0.035, -0.01);
+      const cw = room.finishes.casing;
+      add(new THREE.BoxGeometry(cw, top, 0.02), woodMat, o.from - cw / 2, top / 2, -0.01);
+      add(new THREE.BoxGeometry(cw, top, 0.02), woodMat, o.to + cw / 2, top / 2, -0.01);
+      add(new THREE.BoxGeometry(width + 2 * cw, cw, 0.02), woodMat, mid, top + cw / 2, -0.01);
       if (o.transom > 0) {
         add(new THREE.BoxGeometry(width, 0.05, T), woodMat, mid, o.height + 0.025, T / 2);
         add(new THREE.BoxGeometry(width, o.transom - 0.05, 0.01), glassMat, mid, o.height + 0.05 + (o.transom - 0.05) / 2, T / 2);

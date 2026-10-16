@@ -12,6 +12,8 @@ export interface Pose {
 export interface RoomRect {
   width: number;
   depth: number;
+  /** Minimum gap between the stove body and any wall (the skirting thickness). */
+  inset?: number;
 }
 
 export type NudgeDir = 'forward' | 'back' | 'left' | 'right';
@@ -55,7 +57,8 @@ const clampAxis = (v: number, half: number, len: number) => (2 * half >= len ? l
 export function clampPose(p: Pose, dims: Footprint, room: RoomRect): Pose {
   const r = normaliseDeg(p.r);
   const { hx, hz } = halfExtents(r, dims);
-  return { x: clampAxis(p.x, hx, room.width), z: clampAxis(p.z, hz, room.depth), r };
+  const inset = room.inset ?? 0;
+  return { x: clampAxis(p.x, hx + inset, room.width), z: clampAxis(p.z, hz + inset, room.depth), r };
 }
 
 export function nudge(p: Pose, dir: NudgeDir, step: number, dims: Footprint, room: RoomRect): Pose {
@@ -77,7 +80,7 @@ export function distancesToWalls(p: Pose, dims: Footprint, room: RoomRect): Wall
 export function snapToNearestWall(p: Pose, dims: Footprint, room: RoomRect, rearGap: number): Pose {
   const d: WallDistances = { west: p.x, east: room.width - p.x, south: p.z, north: room.depth - p.z };
   const wall = (Object.keys(d) as (keyof WallDistances)[]).reduce((a, b) => (d[b] < d[a] ? b : a));
-  const back = rearGap + dims.d / 2;
+  const back = Math.max(rearGap, room.inset ?? 0) + dims.d / 2;
   switch (wall) {
     case 'east':
       return clampPose({ x: room.width - back, z: p.z, r: 0 }, dims, room);
@@ -91,7 +94,8 @@ export function snapToNearestWall(p: Pose, dims: Footprint, room: RoomRect, rear
 }
 
 export function initialPose(dims: Footprint, safety: Safety | null, room: RoomRect): Pose {
-  return clampPose({ x: room.width - (safety?.rear ?? 0) - dims.d / 2, z: (FREE_WALL.from + FREE_WALL.to) / 2, r: 0 }, dims, room);
+  const back = Math.max(safety?.rear ?? 0, room.inset ?? 0);
+  return clampPose({ x: room.width - back - dims.d / 2, z: (FREE_WALL.from + FREE_WALL.to) / 2, r: 0 }, dims, room);
 }
 
 /** Frees geometries, and materials flagged `userData.disposable` (shared stove materials are not). */

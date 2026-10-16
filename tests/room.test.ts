@@ -76,11 +76,11 @@ describe('skirtingSegments', () => {
     });
   };
 
-  it('runs between the door casings, closing the corners on north/south walls', () => {
-    close(skirtingSegments(room, 'east', 0.01), [[0, 0.65], [1.59, 3.4]]);
-    close(skirtingSegments(room, 'west', 0.01), [[0, 0.65], [1.59, 2.18], [3.12, 3.4]]);
-    close(skirtingSegments(room, 'north', 0.01), [[-0.01, 0.56], [1.5, 2.01]]);
-    close(skirtingSegments(room, 'south', 0.01), [[-0.01, 0.48], [1.52, 2.01]]);
+  it('runs between the door casings (9.5 cm), closing the corners on north/south walls', () => {
+    close(skirtingSegments(room, 'east', 0.01), [[0, 0.625], [1.615, 3.4]]);
+    close(skirtingSegments(room, 'west', 0.01), [[0, 0.625], [1.615, 2.155], [3.145, 3.4]]);
+    close(skirtingSegments(room, 'north', 0.01), [[-0.01, 0.535], [1.525, 2.01]]);
+    close(skirtingSegments(room, 'south', 0.01), [[-0.01, 0.455], [1.545, 2.01]]);
   });
 });
 

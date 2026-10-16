@@ -1,4 +1,4 @@
-import { defaultFilters, type FilterState, type Range, type RangeKey } from '../data/filters';
+import { defaultFilters, type FilterState, type FreeWallMode, type Range, type RangeKey } from '../data/filters';
 import type { Catalogue, EnergyClass } from '../data/types';
 import { el } from './dom';
 
@@ -22,6 +22,8 @@ export interface FiltersContext {
   catalogue: Catalogue;
   brandCounts: Map<string, number>;
   extents: Record<RangeKey, Range>;
+  /** Depth limits for the free wall, from the apartment measurements. */
+  freeWallLimits: Record<FreeWallMode, number>;
 }
 
 export function renderFilters(container: HTMLElement, ctx: FiltersContext, initial: FilterState, onChange: (s: FilterState) => void): void {
@@ -77,9 +79,9 @@ export function renderFilters(container: HTMLElement, ctx: FiltersContext, initi
           toggle('Solo con distanze di sicurezza', state.onlyWithSafety, (v) => ((state.onlyWithSafety = v), emit())),
           toggle('Solo con prezzo', state.onlyWithPrice, (v) => ((state.onlyWithPrice = v), emit())),
           toggle('Con forno', state.onlyWithOven, (v) => ((state.onlyWithOven = v), emit())),
-          toggle('Profondità max 57 cm (parete libera)', state.fitsFreeWall, (v) => ((state.fitsFreeWall = v), emit())),
         ),
       ),
+      group('Parete libera', freeWallControl(state, ctx.freeWallLimits, () => draw(state), emit)),
       el(
         'button',
         {
@@ -153,4 +155,42 @@ function rangeControl(spec: RangeSpec, ext: Range, value: Range | null, onChange
   });
   sync(false);
   return el('div', { class: 'filter-group' }, el('span', { class: 'label' }, spec.label, out), el('div', { class: 'range-inputs' }, minIn, maxIn));
+}
+
+const cm = (m: number) => `${String(Math.round(m * 1000) / 10).replace('.', ',')} cm`;
+
+/** On/off plus a two-position choice: stay clear of the night-area doorway, or stay in front of plain wall. */
+function freeWallControl(state: FilterState, limits: Record<FreeWallMode, number>, redraw: () => void, emit: () => void): HTMLElement {
+  const enable = toggle('Ci sta lungo la parete libera', state.freeWall !== null, (on) => {
+    state.freeWall = on ? { mode: 'door', maxDepth: limits.door } : null;
+    redraw();
+    emit();
+  });
+  if (!state.freeWall) return el('div', { class: 'checks' }, enable);
+  const option = (mode: FreeWallMode, label: string, hint: string) =>
+    el(
+      'label',
+      { title: hint },
+      el('input', {
+        type: 'radio',
+        name: 'free-wall',
+        checked: state.freeWall?.mode === mode,
+        onchange: () => {
+          state.freeWall = { mode, maxDepth: limits[mode] };
+          emit();
+        },
+      }),
+      ` ${label}`,
+    );
+  return el(
+    'div',
+    {},
+    el('div', { class: 'checks' }, enable),
+    el(
+      'div',
+      { class: 'fit-options' },
+      option('door', `Senza ostruire la porta (≤ ${cm(limits.door)})`, 'Profondità dal battiscopa al bordo interno della cornice della porta della zona notte: il passaggio resta libero'),
+      option('wall', `Solo muro, senza coprire lo stipite (≤ ${cm(limits.wall)})`, 'Profondità dal battiscopa al bordo esterno della cornice: la stufa sta davanti al solo muro'),
+    ),
+  );
 }

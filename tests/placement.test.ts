@@ -128,3 +128,20 @@ describe('initialPose', () => {
     expect(initialPose(dims, null, room).x).toBeCloseTo(1.8);
   });
 });
+
+describe('skirting gap', () => {
+  const skirted = { width: 2, depth: 3.4, inset: 0.01 };
+
+  it('keeps the body off every wall by the skirting thickness', () => {
+    const p = clampPose({ x: 5, z: -1, r: 0 }, dims, skirted);
+    expect(p.x).toBeCloseTo(2 - 0.01 - 0.2);
+    expect(p.z).toBeCloseTo(0.01 + 0.25);
+    expect(distancesToWalls(p, dims, skirted).east).toBeCloseTo(0.01);
+  });
+
+  it('snaps and starts at least the skirting away from the wall', () => {
+    expect(snapToNearestWall({ x: 1.5, z: 2, r: 0 }, dims, skirted, 0).x).toBeCloseTo(2 - 0.01 - 0.2);
+    expect(snapToNearestWall({ x: 1.5, z: 2, r: 0 }, dims, skirted, 0.2).x).toBeCloseTo(2 - 0.2 - 0.2);
+    expect(initialPose(dims, null, skirted).x).toBeCloseTo(2 - 0.01 - 0.2);
+  });
+});
