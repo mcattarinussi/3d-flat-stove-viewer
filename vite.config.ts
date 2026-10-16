@@ -8,7 +8,7 @@ export default defineConfig({
   base: './',
   build: {
     rollupOptions: {
-      input: { main: `${root}index.html` },
+      input: { main: `${root}index.html`, compare: `${root}compare.html` },
     },
   },
   plugins: [
