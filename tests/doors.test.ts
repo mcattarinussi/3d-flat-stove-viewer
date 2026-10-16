@@ -40,6 +40,12 @@ describe('doorPose', () => {
       expect(closed.x * n.x + closed.z * n.z).toBeCloseTo(0);
     }
   });
+
+  it('stairs door opens towards the stairs (west)', () => {
+    const p = doorPose(apt.room, opening('scale'), apt.wallThickness);
+    const open = leafDir(p.open);
+    expect(open.x).toBeCloseTo(-1);
+  });
 });
 
 describe('Doors', () => {

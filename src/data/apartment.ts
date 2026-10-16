@@ -1,4 +1,4 @@
-import type { Apartment, DoorSpec, Fixture, Opening, Room, Wall } from './types';
+import type { Apartment, DoorSpec, Finishes, Fixture, FixtureType, Opening, Room, Wall } from './types';
 
 /** Free east-wall segment between the soggiorno door and the north corner; `maxDepth` keeps the passage clear. */
 export const FREE_WALL: { wall: Wall; from: number; to: number; maxDepth: number } = {
@@ -9,6 +9,26 @@ export const FREE_WALL: { wall: Wall; from: number; to: number; maxDepth: number
 };
 
 const WALLS: Wall[] = ['north', 'south', 'east', 'west'];
+const FIXTURE_TYPES: FixtureType[] = ['radiator', 'switch', 'socket', 'thermostat'];
+
+function parseFinishes(v: unknown): Finishes {
+  if (v === undefined || v === null) return { skirting: null, sills: false };
+  const f = obj(v, 'room.finishes');
+  let skirting: Finishes['skirting'] = null;
+  if (f.skirting !== undefined && f.skirting !== null) {
+    const s = obj(f.skirting, 'room.finishes.skirting');
+    const height = reqNum(s, 'height', 'room.finishes.skirting.');
+    const thickness = reqNum(s, 'thickness', 'room.finishes.skirting.');
+    if (height <= 0 || thickness <= 0) fail('room.finishes.skirting: height e thickness devono essere positivi');
+    skirting = { height, thickness };
+  }
+  return { skirting, sills: f.sills === true };
+}
+
+/** Vertical extent of an item on its wall: openings from the floor to the top of door + transom. */
+function verticalRange(it: Opening | Fixture): [number, number] {
+  return 'elevation' in it ? [it.elevation, it.elevation + it.height] : [0, it.height + it.transom];
+}
 const EPS = 1e-9;
 
 export function wallLength(room: Pick<Room, 'width' | 'depth'>, wall: Wall): number {
@@ -70,10 +90,12 @@ function parseOpening(v: unknown, i: number): Opening {
 function parseFixture(v: unknown, i: number): Fixture {
   const o = obj(v, `room.fixtures[${i}]`);
   const where = `room.fixtures[${i}].`;
-  if (o.type !== 'radiator') fail(`${where}type deve essere radiator`);
+  if (!FIXTURE_TYPES.includes(o.type as FixtureType)) fail(`${where}type deve essere ${FIXTURE_TYPES.join('|')}`);
+  if (o.gangs !== undefined && o.gangs !== 1 && o.gangs !== 2) fail(`${where}gangs deve essere 1 o 2`);
   return {
     id: reqStr(o, 'id', where),
-    type: 'radiator',
+    type: o.type as FixtureType,
+    gangs: o.type === 'switch' && o.gangs === 2 ? 2 : 1,
     wall: reqWall(o, where),
     from: reqNum(o, 'from', where),
     to: reqNum(o, 'to', where),
@@ -102,10 +124,16 @@ function validate(apt: Apartment): void {
     if (f.elevation + f.height > ceilingHeight + EPS) fail(`"${f.id}" supera l'altezza del soffitto`);
   }
   for (const wall of WALLS) {
-    const onWall = items.filter((it) => it.wall === wall).sort((a, b) => a.from - b.from);
-    for (let i = 1; i < onWall.length; i++) {
-      if (onWall[i].from < onWall[i - 1].to - EPS) {
-        fail(`"${onWall[i - 1].id}" e "${onWall[i].id}" si sovrappongono sulla parete ${wall}`);
+    const onWall = items.filter((it) => it.wall === wall);
+    for (let i = 0; i < onWall.length; i++) {
+      for (let j = i + 1; j < onWall.length; j++) {
+        const a = onWall[i];
+        const b = onWall[j];
+        const [ay0, ay1] = verticalRange(a);
+        const [by0, by1] = verticalRange(b);
+        const along = a.from < b.to - EPS && b.from < a.to - EPS;
+        const vertical = ay0 < by1 - EPS && by0 < ay1 - EPS;
+        if (along && vertical) fail(`"${a.id}" e "${b.id}" si sovrappongono sulla parete ${wall}`);
       }
     }
   }
@@ -130,6 +158,7 @@ export function parseApartment(raw: unknown): Apartment {
       floorMaterial: typeof floor.material === 'string' ? floor.material : 'marble',
       openings: openings.map(parseOpening),
       fixtures: fixtures.map(parseFixture),
+      finishes: parseFinishes(room.finishes),
     },
   };
   validate(apt);

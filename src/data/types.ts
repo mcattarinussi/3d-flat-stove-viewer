@@ -125,9 +125,13 @@ export interface Opening {
   door: DoorSpec | null;
 }
 
+export type FixtureType = 'radiator' | 'switch' | 'socket' | 'thermostat';
+
 export interface Fixture {
   id: string;
-  type: 'radiator';
+  type: FixtureType;
+  /** Number of rockers on a switch plate (1 for every other type). */
+  gangs: 1 | 2;
   wall: Wall;
   from: number;
   to: number;
@@ -144,6 +148,12 @@ export interface Room {
   floorMaterial: string;
   openings: Opening[];
   fixtures: Fixture[];
+  finishes: Finishes;
+}
+
+export interface Finishes {
+  skirting: { height: number; thickness: number } | null;
+  sills: boolean;
 }
 
 export interface Apartment {

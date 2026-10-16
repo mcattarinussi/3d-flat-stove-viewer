@@ -16,6 +16,41 @@ describe('parseApartment', () => {
     expect(apt.room.fixtures[0].type).toBe('radiator');
   });
 
+  it('parses wall fixtures, finishes and the stairs door', () => {
+    const apt = parseApartment(realRaw());
+    const byId = Object.fromEntries(apt.room.fixtures.map((f) => [f.id, f]));
+    expect(byId['interruttore-notte']).toMatchObject({ type: 'switch', gangs: 2, wall: 'north' });
+    expect(byId['termostato'].type).toBe('thermostat');
+    expect(byId['presa']).toMatchObject({ type: 'socket', gangs: 1 });
+    expect(byId['radiatore'].gangs).toBe(1);
+    expect(apt.room.finishes).toEqual({ skirting: { height: 0.08, thickness: 0.01 }, sills: true });
+    expect(apt.room.openings.find((o) => o.id === 'scale')!.door!.swing).toBe('out');
+  });
+
+  it('allows items on the same span at different heights, rejects real overlaps', () => {
+    const raw = realRaw();
+    raw.room.fixtures.push({ id: 'x', type: 'switch', wall: 'east', from: 0.8, to: 0.88, height: 0.08, depth: 0.01, elevation: 1 });
+    expect(() => parseApartment(raw)).toThrow(/si sovrappongono/);
+  });
+
+  it('defaults finishes to none and validates them', () => {
+    const raw = realRaw();
+    delete raw.room.finishes;
+    expect(parseApartment(raw).room.finishes).toEqual({ skirting: null, sills: false });
+    const bad = realRaw();
+    bad.room.finishes.skirting.height = -1;
+    expect(() => parseApartment(bad)).toThrow(/skirting/);
+  });
+
+  it('rejects unknown fixture types and bad gang counts', () => {
+    const raw = realRaw();
+    raw.room.fixtures[1].type = 'lamp';
+    expect(() => parseApartment(raw)).toThrow(/type/);
+    const raw2 = realRaw();
+    raw2.room.fixtures[1].gangs = 3;
+    expect(() => parseApartment(raw2)).toThrow(/gangs/);
+  });
+
   it('rejects an opening outside its wall', () => {
     const raw = realRaw();
     raw.room.openings[0].to = 2.3;
