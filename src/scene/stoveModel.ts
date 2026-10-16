@@ -85,7 +85,7 @@ function makeMaterials() {
     ovenGlass: new THREE.MeshPhysicalMaterial({ color: '#0d0d0e', roughness: 0.05, clearcoat: 1 }),
     hob: new THREE.MeshStandardMaterial({ color: '#3a3a3c', metalness: 0.7, roughness: 0.35, polygonOffset: true, polygonOffsetFactor: -1 }),
     handle: new THREE.MeshStandardMaterial({ color: '#9a9a9a', metalness: 0.9, roughness: 0.25 }),
-    flue: new THREE.LineDashedMaterial({ color: '#9ca3af', dashSize: 0.06, gapSize: 0.05 }),
+    pipe: new THREE.MeshStandardMaterial({ color: '#1b1b1c', metalness: 0.6, roughness: 0.5 }),
   };
 }
 const mats = () => (shared ??= makeMaterials());
@@ -155,21 +155,40 @@ export function buildStove(s: Stove): THREE.Group {
   return g;
 }
 
-export function buildFlueHint(s: Stove, ceiling: number): THREE.Line {
+const REAR_RUN = 0.25;
+const CEILING_COLLAR_H = 0.02;
+
+/** Black steel flue pipe from the stove collar to the ceiling (stove-local frame, front +z). */
+export function buildChimney(s: Stove, ceiling: number): THREE.Group {
   const c = collarOf(s);
-  const { h } = dimsOf(s);
-  const pts =
-    c.position === 'top'
-      ? [new THREE.Vector3(c.center.x, h, c.center.z), new THREE.Vector3(c.center.x, ceiling, c.center.z)]
-      : [
-          new THREE.Vector3(c.center.x, c.center.y, -dimsOf(s).d / 2),
-          new THREE.Vector3(c.center.x, c.center.y, -dimsOf(s).d / 2 - 0.25),
-          new THREE.Vector3(c.center.x, ceiling, -dimsOf(s).d / 2 - 0.25),
-        ];
-  const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), mats().flue);
-  line.computeLineDistances();
-  line.name = 'flue-hint';
-  return line;
+  const { h, d } = dimsOf(s);
+  const r = c.diameter / 2;
+  const pipe = mats().pipe;
+  const g = new THREE.Group();
+  g.name = 'chimney';
+
+  const named = (m: THREE.Mesh, name: string) => {
+    m.name = name;
+    g.add(m);
+    return m;
+  };
+  const vertical = (z: number, y0: number) => {
+    const len = Math.max(ceiling - y0, 0.01);
+    named(mesh(new THREE.CylinderGeometry(r, r, len, 24), pipe, c.center.x, y0 + len / 2, z), 'chimney-vertical');
+  };
+
+  let topZ = c.center.z;
+  if (c.position === 'top') {
+    vertical(c.center.z, h);
+  } else {
+    topZ = -d / 2 - REAR_RUN;
+    const run = named(mesh(new THREE.CylinderGeometry(r, r, REAR_RUN, 24), pipe, c.center.x, c.center.y, -d / 2 - REAR_RUN / 2), 'chimney-run');
+    run.rotation.x = Math.PI / 2;
+    named(mesh(new THREE.SphereGeometry(r * 1.05, 16, 12), pipe, c.center.x, c.center.y, topZ), 'chimney-elbow');
+    vertical(topZ, c.center.y);
+  }
+  named(mesh(new THREE.CylinderGeometry(r + 0.03, r + 0.03, CEILING_COLLAR_H, 32), pipe, c.center.x, ceiling - CEILING_COLLAR_H / 2, topZ), 'chimney-ceiling');
+  return g;
 }
 
 export async function loadModelIndex(url: string): Promise<Set<string>> {

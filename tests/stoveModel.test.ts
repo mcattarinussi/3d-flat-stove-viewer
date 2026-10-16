@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { baseHeight, buildFlueHint, buildStove, collarOf, frontLayout } from '../src/scene/stoveModel';
+import { baseHeight, buildChimney, buildStove, collarOf, frontLayout } from '../src/scene/stoveModel';
 import { stove } from './fixtures';
 
 function expectBox(obj: THREE.Object3D, w: number, h: number, d: number) {
@@ -78,9 +78,31 @@ describe('collar and flue hint', () => {
     expect(collarOf(stove({ dims: { w: 0.2, d: 0.2, h: 1 }, flueDiameter: 0.25 })).diameter).toBeCloseTo(0.16);
   });
 
-  it('flue hint reaches the ceiling', () => {
-    const line = buildFlueHint(stove({ dims }), 2.7);
-    const pos = line.geometry.getAttribute('position');
-    expect(pos.getY(pos.count - 1)).toBeCloseTo(2.7);
+  const boxOf = (o: THREE.Object3D) => new THREE.Box3().setFromObject(o);
+
+  it('top outlet: pipe from the stove top to the ceiling, with a ceiling collar', () => {
+    const s = stove({ dims, flueOutlets: ['top'], flueDiameter: 0.15 });
+    const g = buildChimney(s, 2.7);
+    const pipe = boxOf(g.getObjectByName('chimney-vertical')!);
+    expect(pipe.min.y).toBeCloseTo(1.282);
+    expect(pipe.max.y).toBeCloseTo(2.7);
+    expect(pipe.max.x - pipe.min.x).toBeCloseTo(0.15);
+    expect((pipe.min.z + pipe.max.z) / 2).toBeCloseTo(collarOf(s).center.z);
+    expect(boxOf(g.getObjectByName('chimney-ceiling')!).max.y).toBeCloseTo(2.7);
+    expect(g.getObjectByName('chimney-run')).toBeUndefined();
+  });
+
+  it('rear outlet: 25 cm run backwards, elbow, then up to the ceiling', () => {
+    const s = stove({ dims, flueOutlets: ['rear'] });
+    const c = collarOf(s);
+    const g = buildChimney(s, 2.7);
+    const run = boxOf(g.getObjectByName('chimney-run')!);
+    expect(run.max.z).toBeCloseTo(-0.433 / 2);
+    expect(run.min.z).toBeCloseTo(-0.433 / 2 - 0.25);
+    const up = boxOf(g.getObjectByName('chimney-vertical')!);
+    expect(up.min.y).toBeCloseTo(c.center.y);
+    expect(up.max.y).toBeCloseTo(2.7);
+    expect((up.min.z + up.max.z) / 2).toBeCloseTo(-0.433 / 2 - 0.25);
+    expect(g.getObjectByName('chimney-elbow')).toBeDefined();
   });
 });

@@ -13,7 +13,7 @@ import { renderStoveCard } from './ui/stoveCard';
 import type { Stove } from './data/types';
 import { buildBuffer } from './scene/buffer';
 import { PlacementController } from './scene/placement';
-import { buildFlueHint, buildStove, loadModelIndex, loadStoveObject } from './scene/stoveModel';
+import { buildChimney, buildStove, loadModelIndex, loadStoveObject } from './scene/stoveModel';
 import { renderPlacementPanel } from './ui/placementPanel';
 import { CameraRig } from './scene/camera';
 import { Doors } from './scene/doors';
@@ -90,7 +90,7 @@ async function main(): Promise<void> {
     }
     bufferGroup = buildBuffer(current.dims, current.safety);
     if (bufferGroup) bufferGroup.visible = bufferOn;
-    const extras: THREE.Object3D[] = [buildFlueHint(current, apartment.ceilingHeight)];
+    const extras: THREE.Object3D[] = [buildChimney(current, apartment.ceilingHeight)];
     if (bufferGroup) extras.push(bufferGroup);
     placement.setStove({ object: buildStove(current), dims: current.dims, safety: current.safety }, extras);
     if (overrides.has(current.id)) {
