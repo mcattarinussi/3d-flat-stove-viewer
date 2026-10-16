@@ -94,6 +94,16 @@ export function initialPose(dims: Footprint, safety: Safety | null, room: RoomRe
   return clampPose({ x: room.width - (safety?.rear ?? 0) - dims.d / 2, z: (FREE_WALL.from + FREE_WALL.to) / 2, r: 0 }, dims, room);
 }
 
+/** Frees geometries, and materials flagged `userData.disposable` (shared stove materials are not). */
+function disposeTree(root: THREE.Object3D): void {
+  root.traverse((o) => {
+    const m = o as THREE.Mesh;
+    m.geometry?.dispose();
+    const mats = m.material ? (Array.isArray(m.material) ? m.material : [m.material]) : [];
+    for (const mat of mats) if (mat.userData.disposable) mat.dispose();
+  });
+}
+
 export interface StoveHandle {
   object: THREE.Object3D;
   dims: Dims;
@@ -144,6 +154,7 @@ export class PlacementController {
 
   /** Shows a stove; keeps the current pose (re-clamped), or uses the initial pose the first time. */
   setStove(handle: StoveHandle | null, extras: THREE.Object3D[] = []): void {
+    disposeTree(this.holder);
     this.holder.clear();
     this.stove = handle;
     this.ringHit = null;
@@ -159,6 +170,7 @@ export class PlacementController {
       new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }),
     );
     for (const m of [ring, hit]) {
+      (m.material as THREE.Material).userData.disposable = true;
       m.rotation.x = Math.PI / 2;
       m.position.y = 0.01;
     }
@@ -171,6 +183,7 @@ export class PlacementController {
   replaceObject(object: THREE.Object3D): void {
     if (!this.stove) return;
     this.holder.remove(this.stove.object);
+    disposeTree(this.stove.object);
     this.stove = { ...this.stove, object };
     this.holder.add(object);
   }

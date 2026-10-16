@@ -69,5 +69,10 @@ export function buildBuffer(dims: Dims, safety: Safety | null): THREE.Group | nu
     g.add(line);
   }
 
+  // Materials are created per buffer, so whoever removes it may free them.
+  g.traverse((o) => {
+    const mat = (o as THREE.Mesh).material as THREE.Material | undefined;
+    if (mat) mat.userData.disposable = true;
+  });
   return g.children.length ? g : null;
 }
