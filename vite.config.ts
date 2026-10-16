@@ -1,6 +1,7 @@
 import { defineConfig } from 'vitest/config';
 import { cpSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { frontsMiddleware } from './scripts/frontsMiddleware';
 
 const root = fileURLToPath(new URL('.', import.meta.url));
 
@@ -12,6 +13,14 @@ export default defineConfig({
     },
   },
   plugins: [
+    {
+      name: 'fronts-api',
+      apply: 'serve',
+      configureServer(server) {
+        // Lets the in-app cropper save front-photo crops while developing; absent from builds.
+        server.middlewares.use(frontsMiddleware(`${root}public/stove-images`));
+      },
+    },
     {
       name: 'copy-site-data',
       apply: 'build',

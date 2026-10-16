@@ -130,3 +130,11 @@ table.cmp td.best { background: var(--best); font-weight: 600; }
   .details { position: fixed; left: 0 !important; right: 0; top: auto !important; bottom: 0; width: auto; max-height: 60vh; border-radius: 12px 12px 0 0; }
   .details-head { cursor: default; }
 }
+/* Cropper (dev only) */
+.cropper { position: fixed; inset: 0; z-index: 30; background: rgba(0, 0, 0, 0.6); display: flex; align-items: center; justify-content: center; }
+.cropper-panel { background: var(--panel); padding: 16px; border-radius: 10px; max-width: 92vw; display: flex; flex-direction: column; gap: 8px; }
+.cropper-panel h3 { margin: 0; }
+.crop-stage { position: relative; align-self: center; overflow: clip; user-select: none; touch-action: none; cursor: crosshair; }
+.crop-stage img { display: block; max-width: 80vw; max-height: 62vh; }
+.crop-rect { position: absolute; z-index: 1; border: 2px solid #f59e0b; outline: 2000px solid rgba(0, 0, 0, 0.45); cursor: move; }
+.crop-handle { position: absolute; right: -7px; bottom: -7px; width: 14px; height: 14px; background: #f59e0b; border-radius: 3px; cursor: nwse-resize; }

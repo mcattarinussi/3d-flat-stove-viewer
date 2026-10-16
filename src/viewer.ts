@@ -13,9 +13,10 @@ import { renderStoveCard } from './ui/stoveCard';
 import type { Stove } from './data/types';
 import { imageUrl, loadImages, picturesFor } from './data/images';
 import { DetailsWindow } from './ui/detailsWindow';
+import { openCropper } from './ui/cropper';
 import { buildBuffer } from './scene/buffer';
 import { PlacementController } from './scene/placement';
-import { buildChimney, buildStove, loadModelIndex, loadStoveObject } from './scene/stoveModel';
+import { buildChimney, buildStove, frontAspect, loadModelIndex, loadStoveObject } from './scene/stoveModel';
 import { renderPlacementPanel } from './ui/placementPanel';
 import { CameraRig } from './scene/camera';
 import { Doors } from './scene/doors';
@@ -142,6 +143,45 @@ async function main(): Promise<void> {
     syncUrl();
   }
 
+  /** Dev only: crop a catalogue picture to the stove's front and save it via the dev-server API. */
+  function editFront(path: string): void {
+    const s = current;
+    if (!s?.dims) return;
+    const existing = images.fronts.get(s.id);
+    const refresh = () => {
+      if (current === s) {
+        showStove(s);
+        renderCard();
+      }
+    };
+    openCropper({
+      imageUrl: imageUrl(path),
+      aspect: frontAspect(s),
+      initial: existing?.image === path ? existing.crop : undefined,
+      onSave: async (crop) => {
+        const res = await fetch('/__fronts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: s.id, image: path, crop }),
+        });
+        const body = (await res.json()) as { error?: string };
+        if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
+        images.fronts.set(s.id, { image: path, crop });
+        toast('Foto frontale salvata in fronts.json');
+        refresh();
+      },
+      onRemove: existing
+        ? async () => {
+            const res = await fetch(`/__fronts/${encodeURIComponent(s.id)}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            images.fronts.delete(s.id);
+            toast('Foto frontale rimossa');
+            refresh();
+          }
+        : undefined,
+    });
+  }
+
   function setBuffer(on: boolean): void {
     bufferOn = on;
     if (bufferGroup) bufferGroup.visible = on;
@@ -196,6 +236,7 @@ async function main(): Promise<void> {
         if (current) shortlist.toggle(current.id);
       },
       front: { available: frontAvailable(current), on: frontOn, onToggle: (on) => setFront(on) },
+      onUseAsFront: import.meta.env.DEV ? (path) => editFront(path) : undefined,
     });
   }
 
