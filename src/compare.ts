@@ -4,6 +4,8 @@ import { safeLocalStorage, Shortlist, SHORTLIST_KEY } from './data/shortlist';
 import { loadCatalogue } from './data/stoves';
 import type { Stove } from './data/types';
 import { decodeState, EMPTY_STATE, encodeState } from './data/urlState';
+import { imageUrl, loadImages, picturesFor } from './data/images';
+import { openLightbox } from './ui/lightbox';
 import { el } from './ui/dom';
 import { showFatal } from './ui/fatal';
 import { sourceHref } from './ui/format';
@@ -19,6 +21,7 @@ function download(text: string, filename: string): void {
 async function main(): Promise<void> {
   const catalogue = await loadCatalogue('./data/stoves.json');
   const byId = new Map(catalogue.stoves.map((s) => [s.id, s]));
+  const images = await loadImages();
   const shortlist = new Shortlist(safeLocalStorage());
   window.addEventListener('storage', (e) => e.key === SHORTLIST_KEY && shortlist.reload());
   window.addEventListener('pageshow', (e) => e.persisted && shortlist.reload());
@@ -51,6 +54,24 @@ async function main(): Promise<void> {
       ),
     );
     const body: HTMLElement[] = [];
+    body.push(el('tr', { class: 'group' }, el('td', { colspan: stoves.length + 1 }, 'Immagine')));
+    body.push(
+      el(
+        'tr',
+        {},
+        el('td', {}, 'Foto'),
+        ...stoves.map((s) => {
+          const urls = picturesFor(s.id, images).map(imageUrl);
+          return el(
+            'td',
+            {},
+            urls.length
+              ? el('img', { class: 'cmp-thumb', src: urls[0], alt: `${s.brand} ${s.model}`, loading: 'lazy', title: 'Clicca per vedere tutte le foto', onclick: () => openLightbox(urls) })
+              : '—',
+          );
+        }),
+      ),
+    );
     let group = '';
     for (const row of buildCompareRows(stoves)) {
       if (row.group !== group) {
