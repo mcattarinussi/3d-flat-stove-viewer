@@ -1,3 +1,6 @@
 node_modules/
 dist/
+# Local only: manufacturer catalogues (~580 MB) and apartment photos
+assets/catalogues/
+assets/photos/
 .DS_Store

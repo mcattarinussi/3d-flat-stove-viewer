@@ -32,7 +32,7 @@ npm run preview   # serve the production build
 
 `.github/workflows/deploy.yml` tests, builds and publishes `dist/` to GitHub Pages on every push to `main`. Before the first deploy, set **Settings → Pages → Source** to **GitHub Actions**.
 
-The build copies `data/` and `assets/catalogues/` (about 580 MB of manufacturer PDFs) next to the pages, so the source links work online. Everything in `assets/catalogues/` is published, including the `Prezzi_*.xlsx` price sheets.
+The build copies `data/` next to the pages. The manufacturer catalogues (`assets/catalogues/`, about 580 MB) and the apartment photos (`assets/photos/`) are kept out of git, so the PDF source links on each stove only work locally. A local `npm run build` still copies the catalogues into `dist/` when the folder is present.
 
 ## Data
 
@@ -40,7 +40,8 @@ The build copies `data/` and `assets/catalogues/` (about 580 MB of manufacturer 
 |---|---|
 | `data/stoves.json` | Stove catalogue extracted from the manufacturer PDFs, with indicative prices. The schema is documented in `design.md` §3.1. |
 | `data/apartment.json` | The ingresso: size, ceiling height, wall thickness, doors (hinge side, swing direction, glazing, transom) and the radiator. Derived from `assets/floor-plan.svg` and the photos. |
-| `assets/catalogues/` | Source PDFs and price sheets, linked from each stove. |
+| `assets/catalogues/` | Source PDFs and price sheets, linked from each stove. Local only, not in git. |
+| `assets/photos/` | Photos of the apartment used to model the ingresso. Local only, not in git. |
 | `public/models/` | Optional real 3D models (see below). |
 
 Door heights (2.10 m), the transom above the night-area door (0.50 m) and the radiator's size and position are estimates. To correct them, edit `data/apartment.json`; the app checks the file on load and reports any inconsistencies.

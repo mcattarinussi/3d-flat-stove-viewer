@@ -93,7 +93,8 @@ describe('real catalogue', () => {
     expect([...cat.brands].sort((a, b) => a.localeCompare(b))).toEqual(cat.brands);
   });
 
-  it('every source path points to an existing file', () => {
+  // The catalogue PDFs are kept out of git, so this only runs where they exist locally.
+  it.skipIf(!existsSync('assets/catalogues'))('every source path points to an existing file', () => {
     const missing = cat.stoves.flatMap((s) => s.sources.map((x) => x.file)).filter((f) => !existsSync(f));
     expect(missing).toEqual([]);
   });

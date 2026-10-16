@@ -34,6 +34,7 @@ A static Vite + TypeScript + three.js app for placing a wood stove in the apartm
   - There is deliberately no violation or alert logic (spec decision).
 - **Bounding box.** `buildStove()` must produce a bounding box of exactly W×H×D; tests enforce this. Shared stove materials come from `mats()` and must not be disposed. Per-instance materials are flagged `userData.disposable`.
 - **URLs.** Use relative URLs only (`./data/…`, `./models/…`, `./assets/catalogues/…`). Vite runs with `base: './'`, so the site works under any GitHub Pages sub-path.
+- **Local-only assets.** `assets/catalogues/` and `assets/photos/` are git-ignored; never commit them. Code and tests must work when they're absent (CI): the build copies the catalogues only if present, and the source-file test skips.
 - **UI copy** is Italian.
 - **three 0.186** removed `PCFSoftShadowMap`; use `PCFShadowMap`.
 
